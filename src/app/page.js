@@ -1641,6 +1641,7 @@ const SignatureSection = ({ user, rank, month, year }) => {
 const App = () => {
 const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [attendanceData, setAttendanceData] = useState([]);
   const [lateData, setLateData] = useState([]);
   const [ramadhanData, setRamadhanData] = useState([]); 
