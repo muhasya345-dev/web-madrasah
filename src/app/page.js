@@ -974,20 +974,22 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
+      // Menjalankan mesin pembaca barcode pada elemen id="reader"
       scanner = new Html5QrcodeScanner("reader", { 
         fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+        qrbox: { width: 250, height: 250 } 
       }, false);
 
       scanner.render(async (decodedText) => {
-        // Jika barcode terdeteksi
-        await processScan(decodedText);
-        scanner.clear(); // Hentikan scanner setelah berhasil
-        setTimeout(() => setTab('scan'), 2000); // Reset setelah 2 detik
-      }, (error) => {
-        // Abaikan error scanning yang gagal (biasanya karena gambar blur)
-      });
+        // Fungsi ini berjalan otomatis jika barcode terdeteksi
+        const student = STUDENTS.find(s => s.code === decodedText);
+        if (student) {
+           handleManual(student.id, 'Hadir'); // Otomatis simpan hadir ke Supabase
+           alert("Berhasil Absen: " + student.name);
+           scanner.clear(); // Berhenti sejenak
+           setTimeout(() => setTab('scan'), 2000); // Mulai lagi setelah 2 detik
+        }
+      }, (error) => { /* Abaikan error scan gagal */ });
     }
     return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [tab]);
@@ -1074,10 +1076,10 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       <div className="bg-white p-4 rounded shadow min-h-[400px]">
         {tab === 'scan' && (
           <div className="max-w-lg mx-auto text-center space-y-4">
-            <div className="h-64 bg-black rounded-lg flex items-center justify-center relative overflow-hidden">
-               <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-               <div className="absolute inset-0 border-2 border-green-500 opacity-50 m-10 pointer-events-none"></div>
-            </div>
+<div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-green-600">
+   {/* Inilah wadah baru untuk scanner otomatis */}
+   <div id="reader" className="w-full h-full"></div>
+</div>
             <form onSubmit={handleScan} className="flex gap-2">
               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Barcode..." className="flex-1 border p-2 rounded" autoFocus />
               <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
@@ -1398,7 +1400,10 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
       <div className="bg-white p-4 rounded shadow">
         {tab === 'scan' && (
           <div className="max-w-lg mx-auto text-center space-y-4">
-             <div className="h-64 bg-black rounded relative overflow-hidden"><video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" /></div>
+<div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-orange-500">
+   {/* Wadah khusus scanner Ramadhan */}
+   <div id="reader-ramadhan" className="w-full h-full"></div>
+</div>
              <form onSubmit={handleScan} className="flex gap-2"><input value={scanInput} onChange={e => setScanInput(e.target.value)} className="flex-1 border p-2 rounded" placeholder="Scan..." autoFocus /><button className="bg-green-600 text-white px-4 rounded">Cek</button></form>
           </div>
         )}
