@@ -1448,8 +1448,8 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
     window.scrollTo(0,0);
   };
 
- const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data LCKH ini dari Cloud Mbah data?')) {
+const handleDelete = async (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data LCKH ini dari Cloud Supabase?')) {
       // 1. Perintah hapus ke Supabase berdasarkan ID
       const { error } = await supabase.from('lckh').delete().eq('id', id);
 
@@ -1639,47 +1639,51 @@ const SignatureSection = ({ user, rank, month, year }) => {
 // --- APP COMPONENT (DEFINED LAST) ---
 
 const App = () => {
-const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Global State
   const [attendanceData, setAttendanceData] = useState([]);
   const [lateData, setLateData] = useState([]);
   const [ramadhanData, setRamadhanData] = useState([]); 
   const [lckhData, setLckhData] = useState([]);
   const [holidays, setHolidays] = useState(['2024-03-11']); 
-  const [userProfiles, setUserProfiles] = useState({});
+  const [userProfiles, setUserProfiles] = useState({}); 
 
   useEffect(() => {
-    const initApp = async () => {
-      // 1. Ambil Sesi Login dari Browser
-      const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) { setCurrentUser(JSON.parse(savedUser)); setView('dashboard'); }
-
-      // 2. Tarik Data dari Cloud Supabase
-      const { data: att } = await supabase.from('attendance').select('*');
-      if (att) {
-        setAttendanceData(att.filter(a => a.category === 'berjamaah').map(a => ({...a, studentId: Number(a.student_id)})));
-        setLateData(att.filter(a => a.category === 'kesiangan').map(a => ({...a, studentId: Number(a.student_id)})));
-        setRamadhanData(att.filter(a => a.category === 'ramadhan').map(a => ({...a, studentId: Number(a.student_id)})));
-      }
-      
-      const { data: lckh } = await supabase.from('lckh').select('*');
-      if (lckh) setLckhData(lckh.map(d => ({ ...d, userId: d.user_nip, desc: d.description })));
-    };
-    initApp();
+    if (typeof window !== 'undefined') {
+      const savedLckh = localStorage.getItem('lckhData');
+      if (savedLckh) setLckhData(JSON.parse(savedLckh));
+      const savedProfiles = localStorage.getItem('userProfiles');
+      if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
+      const savedAttendance = localStorage.getItem('attendanceData');
+      if (savedAttendance) setAttendanceData(JSON.parse(savedAttendance));
+      const savedLate = localStorage.getItem('lateData');
+      if (savedLate) setLateData(JSON.parse(savedLate));
+      const savedRamadhan = localStorage.getItem('ramadhanData');
+      if (savedRamadhan) setRamadhanData(JSON.parse(savedRamadhan));
+    }
   }, []);
 
-  const handleLogin = (id, pass) => {
-    const teacher = TEACHERS_DATA.find(t => t.nip === id && pass === t.nip);
-    const staff = STAFF_ACCOUNTS.find(s => s.nisn === id && pass === s.pass);
-    const user = teacher || staff;
-    if (user) {
-      setCurrentUser(user); setView('dashboard');
-      localStorage.setItem('currentUser', JSON.stringify(user)); // Biar gak login ulang
-    } else { alert('Login Gagal!'); }
+  useEffect(() => { localStorage.setItem('lckhData', JSON.stringify(lckhData)); }, [lckhData]);
+  useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
+  useEffect(() => { localStorage.setItem('attendanceData', JSON.stringify(attendanceData)); }, [attendanceData]);
+  useEffect(() => { localStorage.setItem('lateData', JSON.stringify(lateData)); }, [lateData]);
+  useEffect(() => { localStorage.setItem('ramadhanData', JSON.stringify(ramadhanData)); }, [ramadhanData]);
+
+  const handleLogin = (identifier, password) => {
+    const teacher = TEACHERS_DATA.find(t => t.nip === identifier && password === t.nip);
+    if (teacher) { setCurrentUser(teacher); setView('dashboard'); return; }
+    const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
+    if (staff) { setCurrentUser(staff); setView('dashboard'); return; }
+    alert('Login Gagal!');
   };
 
-  const logout = () => { setCurrentUser(null); setView('login'); localStorage.removeItem('currentUser'); };
+  const logout = () => { setCurrentUser(null); setView('login'); setIsMobileMenuOpen(false); };
+  const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
+
+  if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row">
