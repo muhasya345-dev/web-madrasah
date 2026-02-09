@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 // Hubungkan ke Supabase (Ganti URL dan KEY dengan milikmu dari Settings > API di Supabase)
 const supabaseUrl = 'https://wpesevugtidwofhgnokz.supabase.co';
@@ -965,20 +966,48 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const [rekapMonth, setRekapMonth] = useState(new Date().getMonth());
   const [rekapYear, setRekapYear] = useState(new Date().getFullYear());
   const currentDate = new Date().toISOString().split('T')[0];
-  const videoRef = useRef(null);
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-bulanan'] : ['scan', 'manual'];
 
+  // --- LOGIKA SCANNER OTOMATIS ---
   useEffect(() => {
-    let stream = null;
+    let scanner = null;
     if (tab === 'scan') {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(s => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
-        .catch(err => console.error("Camera error:", err));
+      scanner = new Html5QrcodeScanner("reader", { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      }, false);
+
+      scanner.render(async (decodedText) => {
+        // Jika barcode terdeteksi
+        await processScan(decodedText);
+        scanner.clear(); // Hentikan scanner setelah berhasil
+        setTimeout(() => setTab('scan'), 2000); // Reset setelah 2 detik
+      }, (error) => {
+        // Abaikan error scanning yang gagal (biasanya karena gambar blur)
+      });
     }
-    return () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
+    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [tab]);
+
+  const processScan = async (code) => {
+    const student = STUDENTS.find(s => s.code === code);
+    if (!student) return alert('Barcode tidak terdaftar!');
+    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Siswa sudah absen!');
+
+    const newRecord = { 
+      student_id: student.id, student_name: student.name, student_class: student.class,
+      date: currentDate, status: 'Hadir', category: 'berjamaah', method: 'Scan', officer: user.name
+    };
+
+    const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
+    if (!error) {
+      setData([...data, { ...inserted[0], studentId: student.id }]);
+      alert(`Berhasil Absen: ${student.name}`);
+    }
+  };
 
   const isWorkingDay = (dateStr) => {
     const d = new Date(dateStr);
@@ -1271,24 +1300,52 @@ const AbsenKesiangan = ({ user, data, setData }) => {
 
 const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const [tab, setTab] = useState('scan');
-  const [scanInput, setScanInput] = useState('');
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
   const currentDate = new Date().toISOString().split('T')[0];
-  const videoRef = useRef(null);
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-total'] : ['scan', 'manual'];
 
+  // --- LOGIKA SCANNER OTOMATIS RAMADHAN ---
   useEffect(() => {
-    let stream = null;
+    let scanner = null;
     if (tab === 'scan') {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(s => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
-        .catch(err => console.error("Camera error:", err));
+      scanner = new Html5QrcodeScanner("reader-ramadhan", { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      }, false);
+
+      scanner.render(async (decodedText) => {
+        await processRamadhanScan(decodedText);
+        scanner.clear(); // Berhenti sejenak setelah berhasil
+        setTimeout(() => setTab('scan'), 2000); // Mulai lagi setelah 2 detik
+      }, (error) => {
+        // Abaikan error saat proses scanning berlangsung
+      });
     }
-    return () => { if (stream) stream.getTracks().forEach(t => t.stop()); };
+    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
   }, [tab]);
+
+  const processRamadhanScan = async (code) => {
+    if (!isRamadhanDay(currentDate)) return alert('Hari Libur/Bukan Jadwal Ramadhan.');
+    
+    const student = STUDENTS.find(s => s.code === code);
+    if (!student) return alert('Barcode tidak terdaftar!');
+    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Siswa sudah absen Ramadhan!');
+
+    const newRecord = { 
+      student_id: student.id, student_name: student.name, student_class: student.class,
+      date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan', officer: user.name 
+    };
+
+    const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
+    if (!error) {
+      setData([...data, { ...inserted[0], studentId: student.id }]);
+      alert(`Ramadhan - Berhasil: ${student.name}`);
+    }
+  };
 
   const isRamadhanDay = (dateStr) => {
     const d = new Date(dateStr);
