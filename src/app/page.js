@@ -6,6 +6,12 @@ import {
   AlertTriangle, Save, Search, Menu, Trash2, X, Edit, Moon
 } from 'lucide-react';
 import Image from 'next/image';
+import { createClient } from '@supabase/supabase-js';
+
+// Hubungkan ke Supabase (Ganti URL dan KEY dengan milikmu dari Settings > API di Supabase)
+const supabaseUrl = 'https://wpesevugtidwofhgnokz.supabase.co';
+const supabaseKey = 'sb_publishable_cWPGQRaYpX830TIZ7MVIDQ_2FfG5YMC';
+const supabase = createClient(supabaseUrl, supabaseKey);
 // --- DATA MOCK ---
 
 const STAFF_ACCOUNTS = [
@@ -982,21 +988,37 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  const handleScan = (e) => {
+  const handleScan = async (e) => {
     e.preventDefault();
     if (!isWorkingDay(currentDate)) return alert('Hari Libur/Bukan Jadwal.');
     const student = STUDENTS.find(s => s.code === scanInput);
     if (!student) return alert('Barcode salah!');
     if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Sudah absen!');
-    setData([...data, { id: Date.now(), studentId: student.id, date: currentDate, status: 'Hadir', method: 'Scan', officer: user.name }]);
-    alert(`Berhasil: ${student.name}`); setScanInput('');
+
+    // SIMPAN KE SUPABASE
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: student.id, student_name: student.name, student_class: student.class,
+      date: currentDate, status: 'Hadir', category: 'berjamaah', method: 'Scan', officer: user.name
+    }]).select();
+
+    if (!error) {
+      setData([...data, { ...inserted[0], studentId: student.id }]);
+      alert(`Berhasil: ${student.name}`); setScanInput('');
+    }
   };
 
-  const handleManual = (studentId, status) => {
+  const handleManual = async (studentId, status) => {
     if (!isWorkingDay(currentDate)) return alert('Hari Libur/Bukan Jadwal.');
-    const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
-    if (status === '') return setData(filtered);
-    setData([...filtered, { id: Date.now(), studentId, date: currentDate, status, method: 'Manual', officer: user.name }]);
+    const student = STUDENTS.find(s => s.id === studentId);
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: studentId, student_name: student.name, student_class: student.class,
+      date: currentDate, status, category: 'berjamaah', method: 'Manual', officer: user.name
+    }]).select();
+
+    if (!error) {
+      const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
+      setData([...filtered, { ...inserted[0], studentId }]);
+    }
   };
 
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
@@ -1156,12 +1178,21 @@ const AbsenKesiangan = ({ user, data, setData }) => {
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const student = STUDENTS.find(s => s.id === parseInt(studentId));
     if (!student) return;
-    setData([...data, { id: Date.now(), studentId: student.id, studentName: student.name, class: student.class, date: selectedDate, reason, officer: user.name }]);
-    setStudentId(''); setReason(''); setStudentSearch('');
+
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: student.id, student_name: student.name, student_class: student.class,
+      date: selectedDate, reason, category: 'kesiangan', officer: user.name
+    }]).select();
+
+    if (!error) {
+      setData([...data, { ...inserted[0], studentId: student.id, studentName: student.name, class: student.class }]);
+      alert('Data kesiangan tersimpan di Cloud!');
+      setStudentId(''); setReason(''); setStudentSearch('');
+    }
   };
 
   const filteredStudentOptions = STUDENTS.filter(s => (s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.class.toLowerCase().includes(studentSearch.toLowerCase())) && (selectedClass === 'All' || s.class === selectedClass));
@@ -1267,20 +1298,27 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  const handleScan = (e) => {
+  const handleScan = async (e) => {
     e.preventDefault();
-    if (!isRamadhanDay(currentDate)) return alert('Hari Libur/Bukan Jadwal Ramadhan.');
     const student = STUDENTS.find(s => s.code === scanInput);
     if (!student) return alert('Barcode salah!');
-    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Sudah absen!');
-    setData([...data, { id: Date.now(), studentId: student.id, date: currentDate, status: 'Hadir', method: 'Scan' }]);
-    alert(`Hadir: ${student.name}`); setScanInput('');
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: student.id, student_name: student.name, student_class: student.class,
+      date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan'
+    }]).select();
+    if (!error) { setData([...data, { ...inserted[0], studentId: student.id }]); setScanInput(''); }
   };
 
-  const handleManual = (studentId, status) => {
-    if (!isRamadhanDay(currentDate)) return alert('Hari Libur.');
-    const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
-    setData([...filtered, { id: Date.now(), studentId, date: currentDate, status, method: 'Manual' }]);
+  const handleManual = async (studentId, status) => {
+    const student = STUDENTS.find(s => s.id === studentId);
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: studentId, student_name: student.name, student_class: student.class,
+      date: currentDate, status, category: 'ramadhan', method: 'Manual'
+    }]).select();
+    if (!error) {
+      const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
+      setData([...filtered, { ...inserted[0], studentId }]);
+    }
   };
 
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
@@ -1383,17 +1421,24 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
 
   const handleProfileSave = () => { setProfiles({ ...profiles, [user.nip]: profile }); alert('Profil disimpan!'); };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    const newRecord = { user_nip: user.nip, date, activity, volume, unit, description: desc };
+
     if (editingId) {
-      setData(data.map(item => item.id === editingId ? { ...item, date, activity, desc, volume, unit } : item));
-      alert('Data diperbarui');
-      setEditingId(null);
+      const { error } = await supabase.from('lckh').update(newRecord).eq('id', editingId);
+      if (!error) {
+        setData(data.map(item => item.id === editingId ? { ...item, ...newRecord, desc: desc } : item));
+        setEditingId(null);
+      }
     } else {
-      setData([...data, { id: Date.now(), date, activity, desc, volume, unit, userId: user.nip }]);
-      alert('Data tersimpan');
+      const { data: inserted, error } = await supabase.from('lckh').insert([newRecord]).select();
+      if (!error && inserted) {
+        setData([...data, { ...inserted[0], userId: inserted[0].user_nip, desc: inserted[0].description }]);
+        alert('LCKH tersimpan di Cloud!');
+      }
     }
-    setActivity(''); setDesc(''); setVolume(1); setUnit('');
+    setActivity(''); setDesc('');
   };
 
   const handleEdit = (item) => {
@@ -1403,7 +1448,20 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
     window.scrollTo(0,0);
   };
 
-  const handleDelete = (id) => { if(window.confirm('Hapus?')) setData(data.filter(i => i.id !== id)); };
+ const handleDelete = async (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data LCKH ini dari Cloud Mbah data?')) {
+      // 1. Perintah hapus ke Supabase berdasarkan ID
+      const { error } = await supabase.from('lckh').delete().eq('id', id);
+
+      if (!error) {
+        // 2. Jika berhasil di Cloud, hapus juga dari tampilan (State)
+        setData(data.filter(i => i.id !== id));
+        alert('Data berhasil dihapus secara permanen!');
+      } else {
+        alert('Gagal menghapus: ' + error.message);
+      }
+    }
+  };
 
   const userRank = GOLONGAN_MAP[profile.golongan] || {};
   const filteredData = data.filter(d => d.userId === user.nip && new Date(d.date).getMonth() === printMonth && new Date(d.date).getFullYear() === printYear);
@@ -1581,51 +1639,46 @@ const SignatureSection = ({ user, rank, month, year }) => {
 // --- APP COMPONENT (DEFINED LAST) ---
 
 const App = () => {
-  const [currentUser, setCurrentUser] = useState(null);
+const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Global State
   const [attendanceData, setAttendanceData] = useState([]);
   const [lateData, setLateData] = useState([]);
   const [ramadhanData, setRamadhanData] = useState([]); 
   const [lckhData, setLckhData] = useState([]);
   const [holidays, setHolidays] = useState(['2024-03-11']); 
-  const [userProfiles, setUserProfiles] = useState({}); 
+  const [userProfiles, setUserProfiles] = useState({});
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedLckh = localStorage.getItem('lckhData');
-      if (savedLckh) setLckhData(JSON.parse(savedLckh));
-      const savedProfiles = localStorage.getItem('userProfiles');
-      if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
-      const savedAttendance = localStorage.getItem('attendanceData');
-      if (savedAttendance) setAttendanceData(JSON.parse(savedAttendance));
-      const savedLate = localStorage.getItem('lateData');
-      if (savedLate) setLateData(JSON.parse(savedLate));
-      const savedRamadhan = localStorage.getItem('ramadhanData');
-      if (savedRamadhan) setRamadhanData(JSON.parse(savedRamadhan));
-    }
+    const initApp = async () => {
+      // 1. Ambil Sesi Login dari Browser
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) { setCurrentUser(JSON.parse(savedUser)); setView('dashboard'); }
+
+      // 2. Tarik Data dari Cloud Supabase
+      const { data: att } = await supabase.from('attendance').select('*');
+      if (att) {
+        setAttendanceData(att.filter(a => a.category === 'berjamaah').map(a => ({...a, studentId: Number(a.student_id)})));
+        setLateData(att.filter(a => a.category === 'kesiangan').map(a => ({...a, studentId: Number(a.student_id)})));
+        setRamadhanData(att.filter(a => a.category === 'ramadhan').map(a => ({...a, studentId: Number(a.student_id)})));
+      }
+      
+      const { data: lckh } = await supabase.from('lckh').select('*');
+      if (lckh) setLckhData(lckh.map(d => ({ ...d, userId: d.user_nip, desc: d.description })));
+    };
+    initApp();
   }, []);
 
-  useEffect(() => { localStorage.setItem('lckhData', JSON.stringify(lckhData)); }, [lckhData]);
-  useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
-  useEffect(() => { localStorage.setItem('attendanceData', JSON.stringify(attendanceData)); }, [attendanceData]);
-  useEffect(() => { localStorage.setItem('lateData', JSON.stringify(lateData)); }, [lateData]);
-  useEffect(() => { localStorage.setItem('ramadhanData', JSON.stringify(ramadhanData)); }, [ramadhanData]);
-
-  const handleLogin = (identifier, password) => {
-    const teacher = TEACHERS_DATA.find(t => t.nip === identifier && password === t.nip);
-    if (teacher) { setCurrentUser(teacher); setView('dashboard'); return; }
-    const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
-    if (staff) { setCurrentUser(staff); setView('dashboard'); return; }
-    alert('Login Gagal!');
+  const handleLogin = (id, pass) => {
+    const teacher = TEACHERS_DATA.find(t => t.nip === id && pass === t.nip);
+    const staff = STAFF_ACCOUNTS.find(s => s.nisn === id && pass === s.pass);
+    const user = teacher || staff;
+    if (user) {
+      setCurrentUser(user); setView('dashboard');
+      localStorage.setItem('currentUser', JSON.stringify(user)); // Biar gak login ulang
+    } else { alert('Login Gagal!'); }
   };
 
-  const logout = () => { setCurrentUser(null); setView('login'); setIsMobileMenuOpen(false); };
-  const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
-
-  if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
+  const logout = () => { setCurrentUser(null); setView('login'); localStorage.removeItem('currentUser'); };
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row">
