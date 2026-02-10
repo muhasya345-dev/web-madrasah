@@ -974,24 +974,39 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
-      // Menjalankan mesin pembaca barcode pada elemen id="reader"
-      scanner = new Html5QrcodeScanner("reader", { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 } 
-      }, false);
+      // Kita pakai Html5Qrcode (bukan Scanner) untuk kontrol kamera lebih dalam
+      import("html5-qrcode").then((plugin) => {
+        scanner = new plugin.Html5Qrcode("reader");
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-      scanner.render(async (decodedText) => {
-        // Fungsi ini berjalan otomatis jika barcode terdeteksi
-        const student = STUDENTS.find(s => s.code === decodedText);
-        if (student) {
-           handleManual(student.id, 'Hadir'); // Otomatis simpan hadir ke Supabase
-           alert("Berhasil Absen: " + student.name);
-           scanner.clear(); // Berhenti sejenak
-           setTimeout(() => setTab('scan'), 2000); // Mulai lagi setelah 2 detik
-        }
-      }, (error) => { /* Abaikan error scan gagal */ });
+        // facingMode: "environment" artinya memaksa pakai kamera belakang
+        scanner.start(
+          { facingMode: "environment" }, 
+          config, 
+          async (decodedText) => {
+            const student = STUDENTS.find(s => s.code === decodedText);
+            if (student) {
+              handleManual(student.id, 'Hadir');
+              alert("Berhasil Absen: " + student.name);
+              // Berhenti sejenak agar tidak scan berkali-kali
+              scanner.pause();
+              setTimeout(() => scanner.resume(), 3000);
+            }
+          },
+          (error) => { /* Abaikan error scan */ }
+        ).catch(err => {
+          console.error("Gagal akses kamera:", err);
+          alert("Pastikan izin kamera diberikan dan gunakan HTTPS.");
+        });
+      });
     }
-    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
+    
+    return () => {
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(e => console.error(e));
+      }
+    };
   }, [tab]);
 
   const processScan = async (code) => {
@@ -1313,21 +1328,49 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
-      scanner = new Html5QrcodeScanner("reader-ramadhan", { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
-      }, false);
+      // Import library secara dinamis untuk menghindari error SSR
+      import("html5-qrcode").then((plugin) => {
+        scanner = new plugin.Html5Qrcode("reader-ramadhan");
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-      scanner.render(async (decodedText) => {
-        await processRamadhanScan(decodedText);
-        scanner.clear(); // Berhenti sejenak setelah berhasil
-        setTimeout(() => setTab('scan'), 2000); // Mulai lagi setelah 2 detik
-      }, (error) => {
-        // Abaikan error saat proses scanning berlangsung
+        // Memaksa kamera belakang (environment) terbuka otomatis
+        scanner.start(
+          { facingMode: "environment" }, 
+          config, 
+          async (decodedText) => {
+            const student = STUDENTS.find(s => s.code === decodedText);
+            if (student) {
+              // Logika simpan otomatis ke Supabase kategori RAMADHAN
+              const newRecord = { 
+                student_id: student.id, student_name: student.name, student_class: student.class,
+                date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan', officer: user.name 
+              };
+
+              const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
+              
+              if (!error) {
+                setData([...data, { ...inserted[0], studentId: student.id }]);
+                alert("Ramadhan Berhasil: " + student.name);
+                
+                // Jeda 3 detik agar tidak scan berkali-kali orang yang sama
+                scanner.pause();
+                setTimeout(() => scanner.resume(), 3000);
+              }
+            }
+          },
+          (error) => { /* Abaikan error pencarian */ }
+        ).catch(err => {
+          console.error("Gagal kamera ramadhan:", err);
+        });
       });
     }
-    return () => { if (scanner) scanner.clear().catch(e => console.error(e)); };
+    
+    return () => {
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(e => console.error(e));
+      }
+    };
   }, [tab]);
 
   const processRamadhanScan = async (code) => {
@@ -1399,12 +1442,10 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
 
       <div className="bg-white p-4 rounded shadow">
         {tab === 'scan' && (
-          <div className="max-w-lg mx-auto text-center space-y-4">
-<div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-orange-500">
-   {/* Wadah khusus scanner Ramadhan */}
-   <div id="reader-ramadhan" className="w-full h-full"></div>
-</div>
-             <form onSubmit={handleScan} className="flex gap-2"><input value={scanInput} onChange={e => setScanInput(e.target.value)} className="flex-1 border p-2 rounded" placeholder="Scan..." autoFocus /><button className="bg-green-600 text-white px-4 rounded">Cek</button></form>
+          <div className="max-w-md mx-auto text-center space-y-4">
+            {/* ID di sini wajib "reader-ramadhan" agar tidak bentrok dengan absen harian */}
+            <div id="reader-ramadhan" className="overflow-hidden rounded-lg border-2 border-orange-500 min-h-[300px] bg-black"></div>
+            <p className="text-sm text-gray-500 italic font-medium">Arahkan Barcode Siswa ke Kamera Belakang</p>
           </div>
         )}
 
@@ -1715,6 +1756,14 @@ const App = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // --- TAMBAHAN: Ambil Sesi Login ---
+      const savedUser = localStorage.getItem('currentUser');
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+        setView('dashboard'); // Langsung lempar ke dashboard jika sudah login
+      }
+
+      // Ambil data lainnya seperti biasa
       const savedLckh = localStorage.getItem('lckhData');
       if (savedLckh) setLckhData(JSON.parse(savedLckh));
       const savedProfiles = localStorage.getItem('userProfiles');
