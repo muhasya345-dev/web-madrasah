@@ -1765,6 +1765,8 @@ const SignatureSection = ({ user, rank, month, year }) => {
 
 // --- APP COMPONENT (DEFINED LAST) ---
 
+// --- APP COMPONENT (YANG SUDAH DIPERBAIKI AGAR SINKRON REAL-TIME) ---
+
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
@@ -1778,68 +1780,111 @@ const App = () => {
   const [holidays, setHolidays] = useState(['2024-03-11']); 
   const [userProfiles, setUserProfiles] = useState({}); 
 
+  // 1. CEK SESI LOGIN (Tetap pakai localStorage hanya untuk sesi user)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // --- TAMBAHAN: Ambil Sesi Login ---
       const savedUser = localStorage.getItem('currentUser');
       if (savedUser) {
         setCurrentUser(JSON.parse(savedUser));
-        setView('dashboard'); // Langsung lempar ke dashboard jika sudah login
+        setView('dashboard');
       }
-
-      // Ambil data lainnya seperti biasa
-      const savedLckh = localStorage.getItem('lckhData');
-      if (savedLckh) setLckhData(JSON.parse(savedLckh));
+      
+      // Load user profiles & holidays (Data statis/jarang berubah boleh di local)
       const savedProfiles = localStorage.getItem('userProfiles');
       if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
-      const savedAttendance = localStorage.getItem('attendanceData');
-      if (savedAttendance) setAttendanceData(JSON.parse(savedAttendance));
-      const savedLate = localStorage.getItem('lateData');
-      if (savedLate) setLateData(JSON.parse(savedLate));
-      const savedRamadhan = localStorage.getItem('ramadhanData');
-      if (savedRamadhan) setRamadhanData(JSON.parse(savedRamadhan));
     }
   }, []);
 
-  useEffect(() => { localStorage.setItem('lckhData', JSON.stringify(lckhData)); }, [lckhData]);
+  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME)
+  useEffect(() => {
+    // A. Fungsi untuk menarik semua data terbaru dari Supabase saat aplikasi dibuka
+    const fetchCloudData = async () => {
+      // Ambil Absensi Berjamaah & Ramadhan & Kesiangan
+      // Kita ambil data hari ini saja agar aplikasi tidak berat (Opsional: bisa diatur rentang waktunya)
+      // const today = new Date().toISOString().split('T')[0]; 
+      
+      // Mengambil SEMUA data (Hati-hati jika data sudah ribuan, sebaiknya difilter per bulan)
+      const { data: attendance } = await supabase.from('attendance').select('*');
+      if (attendance) {
+        setAttendanceData(attendance.filter(d => d.category === 'berjamaah'));
+        setRamadhanData(attendance.filter(d => d.category === 'ramadhan'));
+        setLateData(attendance.filter(d => d.category === 'kesiangan'));
+      }
+
+      // Ambil LCKH
+      const { data: lckh } = await supabase.from('lckh').select('*');
+      if (lckh) setLckhData(lckh);
+    };
+
+    fetchCloudData();
+
+    // B. MENGAKTIFKAN REAL-TIME (Agar Si B langsung lihat inputan Si A tanpa refresh)
+    const channel = supabase.channel('public-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance' },
+        (payload) => {
+          // Jika ada data BARU (INSERT)
+          if (payload.eventType === 'INSERT') {
+            const newData = payload.new;
+            if (newData.category === 'berjamaah') {
+              setAttendanceData((prev) => [...prev, { ...newData, studentId: newData.student_id }]);
+            } else if (newData.category === 'ramadhan') {
+              setRamadhanData((prev) => [...prev, { ...newData, studentId: newData.student_id }]);
+            } else if (newData.category === 'kesiangan') {
+              setLateData((prev) => [...prev, { ...newData, studentId: newData.student_id, studentName: newData.student_name, class: newData.student_class }]);
+            }
+          }
+          // (Opsional: Tambahkan logika untuk UPDATE dan DELETE jika diperlukan)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lckh' },
+        (payload) => {
+           if (payload.eventType === 'INSERT') {
+             setLckhData((prev) => [...prev, { ...payload.new, userId: payload.new.user_nip, desc: payload.new.description }]);
+           }
+        }
+      )
+      .subscribe();
+
+    // Cleanup saat komponen ditutup
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Simpan profil ke lokal (LCKH & Attendance JANGAN disimpan ke local storage lagi agar selalu ambil fresh dari cloud)
   useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
-  useEffect(() => { localStorage.setItem('attendanceData', JSON.stringify(attendanceData)); }, [attendanceData]);
-  useEffect(() => { localStorage.setItem('lateData', JSON.stringify(lateData)); }, [lateData]);
-  useEffect(() => { localStorage.setItem('ramadhanData', JSON.stringify(ramadhanData)); }, [ramadhanData]);
 
   const handleLogin = (identifier, password) => {
-    // Cek Guru
     const teacher = TEACHERS_DATA.find(t => t.nip === identifier && password === t.nip);
     if (teacher) { 
       const userSession = { ...teacher, role: teacher.role || 'teacher' };
       setCurrentUser(userSession); 
-      // SIMPAN KE LOCALSTORAGE AGAR TIDAK HILANG SAAT RELOAD
       localStorage.setItem('currentUser', JSON.stringify(userSession));
       setView('dashboard'); 
       return; 
     }
-
-    // Cek Staff
     const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
     if (staff) { 
       const userSession = { ...staff, role: 'staff' };
       setCurrentUser(userSession); 
-      // SIMPAN KE LOCALSTORAGE AGAR TIDAK HILANG SAAT RELOAD
       localStorage.setItem('currentUser', JSON.stringify(userSession));
       setView('dashboard'); 
       return; 
     }
-
     alert('Login Gagal! NIP/NISN atau Password salah.');
   };
 
   const logout = () => { 
     setCurrentUser(null); 
-    // HAPUS DARI LOCALSTORAGE
     localStorage.removeItem('currentUser');
     setView('login'); 
     setIsMobileMenuOpen(false); 
   };
+  
   const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
 
   if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
