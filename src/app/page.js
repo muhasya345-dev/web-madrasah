@@ -970,62 +970,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-bulanan'] : ['scan', 'manual'];
 
-  // --- LOGIKA SCANNER OTOMATIS ---
-  useEffect(() => {
-    let scanner = null;
-    if (tab === 'scan') {
-      // Kita pakai Html5Qrcode (bukan Scanner) untuk kontrol kamera lebih dalam
-      import("html5-qrcode").then((plugin) => {
-        scanner = new plugin.Html5Qrcode("reader");
-        
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        // facingMode: "environment" artinya memaksa pakai kamera belakang
-        scanner.start(
-          { facingMode: "environment" }, 
-          config, 
-          async (decodedText) => {
-            const student = STUDENTS.find(s => s.code === decodedText);
-            if (student) {
-              handleManual(student.id, 'Hadir');
-              alert("Berhasil Absen: " + student.name);
-              // Berhenti sejenak agar tidak scan berkali-kali
-              scanner.pause();
-              setTimeout(() => scanner.resume(), 3000);
-            }
-          },
-          (error) => { /* Abaikan error scan */ }
-        ).catch(err => {
-          console.error("Gagal akses kamera:", err);
-          alert("Pastikan izin kamera diberikan dan gunakan HTTPS.");
-        });
-      });
-    }
-    
-    return () => {
-      if (scanner && scanner.isScanning) {
-        scanner.stop().catch(e => console.error(e));
-      }
-    };
-  }, [tab]);
-
-  const processScan = async (code) => {
-    const student = STUDENTS.find(s => s.code === code);
-    if (!student) return alert('Barcode tidak terdaftar!');
-    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Siswa sudah absen!');
-
-    const newRecord = { 
-      student_id: student.id, student_name: student.name, student_class: student.class,
-      date: currentDate, status: 'Hadir', category: 'berjamaah', method: 'Scan', officer: user.name
-    };
-
-    const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
-    if (!error) {
-      setData([...data, { ...inserted[0], studentId: student.id }]);
-      alert(`Berhasil Absen: ${student.name}`);
-    }
-  };
-
   const isWorkingDay = (dateStr) => {
     const d = new Date(dateStr);
     const day = d.getDay();
@@ -1034,39 +978,91 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  const handleScan = async (e) => {
-    e.preventDefault();
+  // --- FUNGSI UTAMA PENANGANAN ABSEN (Manual & Scan lewat sini) ---
+  const handleManual = async (studentId, status, viaMethod = 'Manual') => {
+    // 1. Cek Hari Libur
     if (!isWorkingDay(currentDate)) return alert('Hari Libur/Bukan Jadwal.');
-    const student = STUDENTS.find(s => s.code === scanInput);
-    if (!student) return alert('Barcode salah!');
-    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Sudah absen!');
 
-    // SIMPAN KE SUPABASE
-    const { data: inserted, error } = await supabase.from('attendance').insert([{
-      student_id: student.id, student_name: student.name, student_class: student.class,
-      date: currentDate, status: 'Hadir', category: 'berjamaah', method: 'Scan', officer: user.name
-    }]).select();
-
-    if (!error) {
-      setData([...data, { ...inserted[0], studentId: student.id }]);
-      alert(`Berhasil: ${student.name}`); setScanInput('');
+    // 2. CEK DATA GANDA (VALIDASI)
+    // Mencari apakah siswa ini sudah ada di data hari ini
+    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
+    
+    if (alreadyPresent) {
+      // Jika sudah ada, tampilkan peringatan dan batalkan proses
+      return alert(`GAGAL: Siswa ini sudah absen hari ini via ${alreadyPresent.method || 'metode lain'}!`);
     }
-  };
 
-  const handleManual = async (studentId, status) => {
-    if (!isWorkingDay(currentDate)) return alert('Hari Libur/Bukan Jadwal.');
+    // 3. Jika belum ada, Lanjutkan Simpan
     const student = STUDENTS.find(s => s.id === studentId);
     const { data: inserted, error } = await supabase.from('attendance').insert([{
-      student_id: studentId, student_name: student.name, student_class: student.class,
-      date: currentDate, status, category: 'berjamaah', method: 'Manual', officer: user.name
+      student_id: studentId, 
+      student_name: student.name, 
+      student_class: student.class,
+      date: currentDate, 
+      status, 
+      category: 'berjamaah', 
+      method: viaMethod, // Bisa 'Manual' atau 'Scan'
+      officer: user.name
     }]).select();
 
     if (!error) {
+      // Update state lokal agar UI langsung berubah
       const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
       setData([...filtered, { ...inserted[0], studentId }]);
+      if(viaMethod === 'Scan') alert(`Berhasil Scan: ${student.name}`);
+    } else {
+      alert('Gagal menyimpan ke database.');
     }
   };
 
+  // --- LOGIKA SCANNER OTOMATIS ---
+  useEffect(() => {
+    let scanner = null;
+    if (tab === 'scan') {
+      import("html5-qrcode").then((plugin) => {
+        scanner = new plugin.Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        scanner.start(
+          { facingMode: "environment" }, 
+          config, 
+          async (decodedText) => {
+            const student = STUDENTS.find(s => s.code === decodedText);
+            if (student) {
+              // Panggil handleManual dengan flag 'Scan'
+              handleManual(student.id, 'Hadir', 'Scan');
+              
+              scanner.pause();
+              setTimeout(() => scanner.resume(), 2500);
+            } else {
+              alert("Barcode tidak dikenali!");
+              scanner.pause();
+              setTimeout(() => scanner.resume(), 1000);
+            }
+          },
+          (error) => { }
+        ).catch(err => {
+          console.error("Gagal akses kamera:", err);
+        });
+      });
+    }
+    return () => {
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(e => console.error(e));
+      }
+    };
+  }, [tab]);
+
+  // Input Text Scan (Jika pakai alat scan tembak ke kolom input)
+  const handleScanInput = async (e) => {
+    e.preventDefault();
+    const student = STUDENTS.find(s => s.code === scanInput);
+    if (!student) return alert('Barcode salah!');
+    // Panggil handleManual agar validasi ganda tetap jalan
+    handleManual(student.id, 'Hadir', 'Scan');
+    setScanInput('');
+  };
+
+  // Helper render
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const filteredStudents = STUDENTS.filter(s => s.class === selectedClassRecap);
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()) || s.class.toLowerCase().includes(manualSearch.toLowerCase()));
@@ -1091,12 +1087,11 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       <div className="bg-white p-4 rounded shadow min-h-[400px]">
         {tab === 'scan' && (
           <div className="max-w-lg mx-auto text-center space-y-4">
-<div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-green-600">
-   {/* Inilah wadah baru untuk scanner otomatis */}
-   <div id="reader" className="w-full h-full"></div>
-</div>
-            <form onSubmit={handleScan} className="flex gap-2">
-              <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Barcode..." className="flex-1 border p-2 rounded" autoFocus />
+            <div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-green-600">
+               <div id="reader" className="w-full h-full"></div>
+            </div>
+            <form onSubmit={handleScanInput} className="flex gap-2">
+              <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Klik disini untuk Scan Alat Tembak..." className="flex-1 border p-2 rounded" autoFocus />
               <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
             </form>
           </div>
@@ -1112,7 +1107,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
               <table className="w-full border-collapse">
                 <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kelas</th><th className="p-2 border">Status</th></tr></thead>
                 <tbody>
-                  {manualStudents.map(s => {
+                  {manualStudents.slice(0, 50).map(s => { // Batasi render biar ringan
                     const st = getStatus(s.id, currentDate);
                     const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
                     return (
@@ -1120,7 +1115,12 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                         <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
                         <td className="p-2 flex gap-1">
                           {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                            <button key={status} disabled={isRec && st !== status} onClick={() => handleManual(s.id, status)} className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}>{status}</button>
+                            <button key={status} 
+                              disabled={isRec && st !== status} // Disable jika sudah absen dengan status beda
+                              onClick={() => handleManual(s.id, status, 'Manual')} 
+                              className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              {status}
+                            </button>
                           ))}
                         </td>
                       </tr>
@@ -1132,6 +1132,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
+        {/* BAGIAN REKAP SAMA SEPERTI SEBELUMNYA (TIDAK DIUBAH AGAR HEMAT TEMPAT) */}
         {(tab === 'rekap-harian' || tab === 'rekap-bulanan') && isPrivileged && (
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4 no-print">
@@ -1320,28 +1321,48 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
   const currentDate = new Date().toISOString().split('T')[0];
+  const [scanInput, setScanInput] = useState(''); // Tambahan state buat input scan manual
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-total'] : ['scan', 'manual'];
 
-  // --- LOGIKA SCANNER OTOMATIS RAMADHAN ---
+  const isRamadhanDay = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    if (day < 1 || day > 5) return false;
+    if (holidays.includes(dateStr)) return false;
+    return true;
+  };
+
+  // --- LOGIKA SCANNER KAMERA ---
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
-      // Import library secara dinamis untuk menghindari error SSR
       import("html5-qrcode").then((plugin) => {
         scanner = new plugin.Html5Qrcode("reader-ramadhan");
-        
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        // Memaksa kamera belakang (environment) terbuka otomatis
         scanner.start(
           { facingMode: "environment" }, 
           config, 
           async (decodedText) => {
+            if (!isRamadhanDay(currentDate)) {
+                 alert('Bukan Jadwal Ramadhan!');
+                 scanner.pause(); setTimeout(() => scanner.resume(), 2000);
+                 return;
+            }
+
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              // Logika simpan otomatis ke Supabase kategori RAMADHAN
+              // CEK DATA GANDA DI SCANNER
+              const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === student.id);
+              if (alreadyPresent) {
+                 alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini (${alreadyPresent.method})!`);
+                 scanner.pause();
+                 setTimeout(() => scanner.resume(), 2500);
+                 return;
+              }
+
+              // Simpan jika bersih
               const newRecord = { 
                 student_id: student.id, student_name: student.name, student_class: student.class,
                 date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan', officer: user.name 
@@ -1352,77 +1373,56 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
               if (!error) {
                 setData([...data, { ...inserted[0], studentId: student.id }]);
                 alert("Ramadhan Berhasil: " + student.name);
-                
-                // Jeda 3 detik agar tidak scan berkali-kali orang yang sama
                 scanner.pause();
                 setTimeout(() => scanner.resume(), 3000);
               }
             }
           },
-          (error) => { /* Abaikan error pencarian */ }
+          (error) => { }
         ).catch(err => {
           console.error("Gagal kamera ramadhan:", err);
         });
       });
     }
-    
     return () => {
       if (scanner && scanner.isScanning) {
         scanner.stop().catch(e => console.error(e));
       }
     };
-  }, [tab]);
+  }, [tab, data]); // Tambahkan 'data' sebagai dependency agar pengecekan akurat
 
-  const processRamadhanScan = async (code) => {
-    if (!isRamadhanDay(currentDate)) return alert('Hari Libur/Bukan Jadwal Ramadhan.');
-    
-    const student = STUDENTS.find(s => s.code === code);
-    if (!student) return alert('Barcode tidak terdaftar!');
-    if (data.find(d => d.date === currentDate && d.studentId === student.id)) return alert('Siswa sudah absen Ramadhan!');
-
-    const newRecord = { 
-      student_id: student.id, student_name: student.name, student_class: student.class,
-      date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan', officer: user.name 
-    };
-
-    const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
-    if (!error) {
-      setData([...data, { ...inserted[0], studentId: student.id }]);
-      alert(`Ramadhan - Berhasil: ${student.name}`);
-    }
-  };
-
-  const isRamadhanDay = (dateStr) => {
-    const d = new Date(dateStr);
-    const day = d.getDay();
-    if (day < 1 || day > 5) return false;
-    if (holidays.includes(dateStr)) return false;
-    return true;
-  };
-
-  const handleScan = async (e) => {
-    e.preventDefault();
-    const student = STUDENTS.find(s => s.code === scanInput);
-    if (!student) return alert('Barcode salah!');
-    const { data: inserted, error } = await supabase.from('attendance').insert([{
-      student_id: student.id, student_name: student.name, student_class: student.class,
-      date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan'
-    }]).select();
-    if (!error) { setData([...data, { ...inserted[0], studentId: student.id }]); setScanInput(''); }
-  };
-
-  const handleManual = async (studentId, status) => {
+  // --- LOGIKA MANUAL ---
+  const handleManual = async (studentId, status, viaMethod = 'Manual') => {
     const student = STUDENTS.find(s => s.id === studentId);
+    
+    // CEK DATA GANDA DI MANUAL
+    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
+    if (alreadyPresent) {
+       return alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
+    }
+
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
-      date: currentDate, status, category: 'ramadhan', method: 'Manual'
+      date: currentDate, status, category: 'ramadhan', method: viaMethod, officer: user.name
     }]).select();
+
     if (!error) {
       const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
       setData([...filtered, { ...inserted[0], studentId }]);
+      if (viaMethod === 'Scan') { setScanInput(''); alert(`Berhasil: ${student.name}`); }
     }
   };
 
+  // --- LOGIKA SCAN INPUT TEXT ---
+  const handleScanInput = (e) => {
+      e.preventDefault();
+      if (!isRamadhanDay(currentDate)) return alert('Hari Libur/Bukan Jadwal Ramadhan.');
+      const student = STUDENTS.find(s => s.code === scanInput);
+      if (!student) return alert('Barcode tidak terdaftar!');
+      handleManual(student.id, 'Hadir', 'Scan'); // Gunakan handleManual agar tervalidasi
+  };
+
+  // Helper
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const filteredStudents = STUDENTS.filter(s => s.class === selectedClass);
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()));
@@ -1443,9 +1443,13 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
       <div className="bg-white p-4 rounded shadow">
         {tab === 'scan' && (
           <div className="max-w-md mx-auto text-center space-y-4">
-            {/* ID di sini wajib "reader-ramadhan" agar tidak bentrok dengan absen harian */}
             <div id="reader-ramadhan" className="overflow-hidden rounded-lg border-2 border-orange-500 min-h-[300px] bg-black"></div>
-            <p className="text-sm text-gray-500 italic font-medium">Arahkan Barcode Siswa ke Kamera Belakang</p>
+            
+            <form onSubmit={handleScanInput} className="flex gap-2">
+              <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Alat Tembak..." className="flex-1 border p-2 rounded" autoFocus />
+              <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
+            </form>
+            <p className="text-sm text-gray-500 italic font-medium">Arahkan Barcode ke Kamera atau Gunakan Alat Scan</p>
           </div>
         )}
 
@@ -1454,7 +1458,27 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
             <div className="mb-4"><input type="text" className="w-full border p-2 rounded" placeholder="Cari Siswa..." value={manualSearch} onChange={e => setManualSearch(e.target.value)} /></div>
             <table className="w-full border-collapse">
               <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kls</th><th className="p-2 border">Status</th></tr></thead>
-              <tbody>{manualStudents.map(s => <tr key={s.id} className="border-b"><td className="p-2">{s.name}</td><td className="p-2">{s.class}</td><td className="p-2 flex gap-1">{['Sakit', 'Izin', 'Hadir'].map(st => <button key={st} onClick={() => handleManual(s.id, st)} className={`px-2 py-1 border rounded text-xs ${getStatus(s.id, currentDate) === st ? 'bg-blue-600 text-white' : ''}`}>{st}</button>)}</td></tr>)}</tbody>
+              <tbody>
+                {manualStudents.slice(0,50).map(s => {
+                    const st = getStatus(s.id, currentDate);
+                    const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
+                    return (
+                        <tr key={s.id} className="border-b">
+                            <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
+                            <td className="p-2 flex gap-1">
+                                {['Sakit', 'Izin', 'Hadir'].map(status => (
+                                    <button key={status} 
+                                        disabled={isRec && st !== status}
+                                        onClick={() => handleManual(s.id, status)} 
+                                        className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        {status}
+                                    </button>
+                                ))}
+                            </td>
+                        </tr>
+                    )
+                })}
+              </tbody>
             </table>
           </div>
         )}
@@ -1784,14 +1808,38 @@ const App = () => {
   useEffect(() => { localStorage.setItem('ramadhanData', JSON.stringify(ramadhanData)); }, [ramadhanData]);
 
   const handleLogin = (identifier, password) => {
+    // Cek Guru
     const teacher = TEACHERS_DATA.find(t => t.nip === identifier && password === t.nip);
-    if (teacher) { setCurrentUser(teacher); setView('dashboard'); return; }
+    if (teacher) { 
+      const userSession = { ...teacher, role: teacher.role || 'teacher' };
+      setCurrentUser(userSession); 
+      // SIMPAN KE LOCALSTORAGE AGAR TIDAK HILANG SAAT RELOAD
+      localStorage.setItem('currentUser', JSON.stringify(userSession));
+      setView('dashboard'); 
+      return; 
+    }
+
+    // Cek Staff
     const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
-    if (staff) { setCurrentUser(staff); setView('dashboard'); return; }
-    alert('Login Gagal!');
+    if (staff) { 
+      const userSession = { ...staff, role: 'staff' };
+      setCurrentUser(userSession); 
+      // SIMPAN KE LOCALSTORAGE AGAR TIDAK HILANG SAAT RELOAD
+      localStorage.setItem('currentUser', JSON.stringify(userSession));
+      setView('dashboard'); 
+      return; 
+    }
+
+    alert('Login Gagal! NIP/NISN atau Password salah.');
   };
 
-  const logout = () => { setCurrentUser(null); setView('login'); setIsMobileMenuOpen(false); };
+  const logout = () => { 
+    setCurrentUser(null); 
+    // HAPUS DARI LOCALSTORAGE
+    localStorage.removeItem('currentUser');
+    setView('login'); 
+    setIsMobileMenuOpen(false); 
+  };
   const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
 
   if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
