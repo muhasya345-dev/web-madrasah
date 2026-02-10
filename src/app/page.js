@@ -978,22 +978,22 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  // --- FUNGSI UTAMA PENANGANAN ABSEN (Manual & Scan lewat sini) ---
-  const handleManual = async (studentId, status, viaMethod = 'Manual') => {
-    // 1. Cek Hari Libur
-    if (!isWorkingDay(currentDate)) return alert('Hari Libur/Bukan Jadwal.');
+  // --- LOGIKA UTAMA (SCAN & MANUAL) ---
+  const processAttendance = async (studentId, status, viaMethod) => {
+    if (!isWorkingDay(currentDate)) {
+        alert('Hari Libur/Bukan Jadwal.');
+        return false;
+    }
 
-    // 2. CEK DATA GANDA (VALIDASI)
-    // Mencari apakah siswa ini sudah ada di data hari ini
+    // CEK DATA GANDA (Strict)
+    const student = STUDENTS.find(s => s.id === studentId);
     const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
     
     if (alreadyPresent) {
-      // Jika sudah ada, tampilkan peringatan dan batalkan proses
-      return alert(`GAGAL: Siswa ini sudah absen hari ini via ${alreadyPresent.method || 'metode lain'}!`);
+      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
+      return false;
     }
 
-    // 3. Jika belum ada, Lanjutkan Simpan
-    const student = STUDENTS.find(s => s.id === studentId);
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, 
       student_name: student.name, 
@@ -1001,21 +1001,20 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       date: currentDate, 
       status, 
       category: 'berjamaah', 
-      method: viaMethod, // Bisa 'Manual' atau 'Scan'
+      method: viaMethod, 
       officer: user.name
     }]).select();
 
     if (!error) {
-      // Update state lokal agar UI langsung berubah
-      const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
-      setData([...filtered, { ...inserted[0], studentId }]);
       if(viaMethod === 'Scan') alert(`Berhasil Scan: ${student.name}`);
+      return true;
     } else {
       alert('Gagal menyimpan ke database.');
+      return false;
     }
   };
 
-  // --- LOGIKA SCANNER OTOMATIS ---
+  // --- SCANNER KAMERA ---
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1028,11 +1027,9 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           async (decodedText) => {
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              // Panggil handleManual dengan flag 'Scan'
-              handleManual(student.id, 'Hadir', 'Scan');
-              
+              const success = await processAttendance(student.id, 'Hadir', 'Scan');
               scanner.pause();
-              setTimeout(() => scanner.resume(), 2500);
+              setTimeout(() => scanner.resume(), success ? 2500 : 2000);
             } else {
               alert("Barcode tidak dikenali!");
               scanner.pause();
@@ -1040,33 +1037,26 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
             }
           },
           (error) => { }
-        ).catch(err => {
-          console.error("Gagal akses kamera:", err);
-        });
+        ).catch(err => console.error("Gagal akses kamera:", err));
       });
     }
-    return () => {
-      if (scanner && scanner.isScanning) {
-        scanner.stop().catch(e => console.error(e));
-      }
-    };
-  }, [tab]);
+    return () => { if (scanner && scanner.isScanning) scanner.stop().catch(e => console.error(e)); };
+  }, [tab, data]);
 
-  // Input Text Scan (Jika pakai alat scan tembak ke kolom input)
+  // Input Text Scan
   const handleScanInput = async (e) => {
     e.preventDefault();
     const student = STUDENTS.find(s => s.code === scanInput);
     if (!student) return alert('Barcode salah!');
-    // Panggil handleManual agar validasi ganda tetap jalan
-    handleManual(student.id, 'Hadir', 'Scan');
-    setScanInput('');
+    const success = await processAttendance(student.id, 'Hadir', 'Scan');
+    if (success) setScanInput('');
   };
 
   // Helper render
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const filteredStudents = STUDENTS.filter(s => s.class === selectedClassRecap);
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()) || s.class.toLowerCase().includes(manualSearch.toLowerCase()));
-  const waliKelasInfo = WALI_KELAS_MAP[selectedClassRecap] || { name: '.........................', nip: '.........................' };
+  const waliKelasInfo = WALI_KELAS_MAP[selectedClassRecap] || { name: '...', nip: '...' };
 
   return (
     <div className="space-y-4">
@@ -1107,7 +1097,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
               <table className="w-full border-collapse">
                 <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kelas</th><th className="p-2 border">Status</th></tr></thead>
                 <tbody>
-                  {manualStudents.slice(0, 50).map(s => { // Batasi render biar ringan
+                  {manualStudents.slice(0, 50).map(s => { 
                     const st = getStatus(s.id, currentDate);
                     const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
                     return (
@@ -1116,8 +1106,8 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                         <td className="p-2 flex gap-1">
                           {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
                             <button key={status} 
-                              disabled={isRec && st !== status} // Disable jika sudah absen dengan status beda
-                              onClick={() => handleManual(s.id, status, 'Manual')} 
+                              disabled={isRec && st !== status} 
+                              onClick={() => processAttendance(s.id, status, 'Manual')} 
                               className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>
                               {status}
                             </button>
@@ -1132,7 +1122,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
-        {/* BAGIAN REKAP SAMA SEPERTI SEBELUMNYA (TIDAK DIUBAH AGAR HEMAT TEMPAT) */}
+        {/* REKAP SAMA SAJA TIDAK BERUBAH */}
         {(tab === 'rekap-harian' || tab === 'rekap-bulanan') && isPrivileged && (
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4 no-print">
@@ -1199,8 +1189,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
         )}
         
         {tab === 'settings' && isPrivileged && (
-          <div>
-             <h3 className="font-bold mb-4">Pengaturan Hari Libur</h3>
+          <div><h3 className="font-bold mb-4">Pengaturan Hari Libur</h3>
              <div className="flex gap-2 mb-4">
                <input type="date" id="holidayInput" className="border p-2 rounded" />
                <button onClick={() => { const val = document.getElementById('holidayInput').value; if(val) setHolidays([...holidays, val]); }} className="bg-red-600 text-white px-4 py-2 rounded">Tambah</button>
@@ -1321,7 +1310,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
   const currentDate = new Date().toISOString().split('T')[0];
-  const [scanInput, setScanInput] = useState(''); // Tambahan state buat input scan manual
+  const [scanInput, setScanInput] = useState('');
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-total'] : ['scan', 'manual'];
@@ -1334,7 +1323,49 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  // --- LOGIKA SCANNER KAMERA ---
+  // --- LOGIKA UTAMA (SCAN & MANUAL MENGGUNAKAN INI) ---
+  const processAttendance = async (studentId, status, viaMethod) => {
+    // 1. Cek Hari
+    if (!isRamadhanDay(currentDate)) {
+      alert('Bukan Jadwal Ramadhan!');
+      return false;
+    }
+
+    // 2. CEK DATA GANDA (WAJIB)
+    // Karena App.js sudah menstandarkan data ke 'studentId', kita aman menggunakan field ini.
+    const student = STUDENTS.find(s => s.id === studentId);
+    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
+    
+    if (alreadyPresent) {
+      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
+      return false;
+    }
+
+    // 3. Simpan ke Database
+    const { data: inserted, error } = await supabase.from('attendance').insert([{
+      student_id: studentId, 
+      student_name: student.name, 
+      student_class: student.class,
+      date: currentDate, 
+      status, 
+      category: 'ramadhan', 
+      method: viaMethod, 
+      officer: user.name
+    }]).select();
+
+    if (!error) {
+      // Kita tidak perlu update state manual (setData) di sini karena App.js 
+      // sudah punya listener Realtime yang akan menangkap INSERT ini dan mengupdate state secara global.
+      // Namun untuk responsivitas instan di UI sendiri, kita bisa update.
+      if (viaMethod === 'Scan') alert(`Ramadhan Berhasil: ${student.name}`);
+      return true;
+    } else {
+      alert('Gagal koneksi database.');
+      return false;
+    }
+  };
+
+  // --- SCANNER KAMERA ---
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1345,81 +1376,27 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
           { facingMode: "environment" }, 
           config, 
           async (decodedText) => {
-            if (!isRamadhanDay(currentDate)) {
-                 alert('Bukan Jadwal Ramadhan!');
-                 scanner.pause(); setTimeout(() => scanner.resume(), 2000);
-                 return;
-            }
-
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              // CEK DATA GANDA DI SCANNER
-              const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === student.id);
-              if (alreadyPresent) {
-                 alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini (${alreadyPresent.method})!`);
-                 scanner.pause();
-                 setTimeout(() => scanner.resume(), 2500);
-                 return;
-              }
-
-              // Simpan jika bersih
-              const newRecord = { 
-                student_id: student.id, student_name: student.name, student_class: student.class,
-                date: currentDate, status: 'Hadir', category: 'ramadhan', method: 'Scan', officer: user.name 
-              };
-
-              const { data: inserted, error } = await supabase.from('attendance').insert([newRecord]).select();
-              
-              if (!error) {
-                setData([...data, { ...inserted[0], studentId: student.id }]);
-                alert("Ramadhan Berhasil: " + student.name);
-                scanner.pause();
-                setTimeout(() => scanner.resume(), 3000);
-              }
+              const success = await processAttendance(student.id, 'Hadir', 'Scan');
+              scanner.pause();
+              setTimeout(() => scanner.resume(), success ? 3000 : 2000);
             }
           },
           (error) => { }
-        ).catch(err => {
-          console.error("Gagal kamera ramadhan:", err);
-        });
+        ).catch(err => console.error("Gagal kamera:", err));
       });
     }
-    return () => {
-      if (scanner && scanner.isScanning) {
-        scanner.stop().catch(e => console.error(e));
-      }
-    };
-  }, [tab, data]); // Tambahkan 'data' sebagai dependency agar pengecekan akurat
+    return () => { if (scanner && scanner.isScanning) scanner.stop().catch(e => console.error(e)); };
+  }, [tab, data]); // Dependency data penting agar pengecekan duplikat akurat
 
-  // --- LOGIKA MANUAL ---
-  const handleManual = async (studentId, status, viaMethod = 'Manual') => {
-    const student = STUDENTS.find(s => s.id === studentId);
-    
-    // CEK DATA GANDA DI MANUAL
-    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
-    if (alreadyPresent) {
-       return alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
-    }
-
-    const { data: inserted, error } = await supabase.from('attendance').insert([{
-      student_id: studentId, student_name: student.name, student_class: student.class,
-      date: currentDate, status, category: 'ramadhan', method: viaMethod, officer: user.name
-    }]).select();
-
-    if (!error) {
-      const filtered = data.filter(d => !(d.date === currentDate && d.studentId === studentId));
-      setData([...filtered, { ...inserted[0], studentId }]);
-      if (viaMethod === 'Scan') { setScanInput(''); alert(`Berhasil: ${student.name}`); }
-    }
-  };
-
-  // --- LOGIKA SCAN INPUT TEXT ---
-  const handleScanInput = (e) => {
+  // --- SCAN INPUT TEXT ---
+  const handleScanInput = async (e) => {
       e.preventDefault();
-      if (!isRamadhanDay(currentDate)) return alert('Hari Libur/Bukan Jadwal Ramadhan.');
       const student = STUDENTS.find(s => s.code === scanInput);
       if (!student) return alert('Barcode tidak terdaftar!');
-      handleManual(student.id, 'Hadir', 'Scan'); // Gunakan handleManual agar tervalidasi
+      const success = await processAttendance(student.id, 'Hadir', 'Scan');
+      if (success) setScanInput('');
   };
 
   // Helper
@@ -1444,12 +1421,11 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
         {tab === 'scan' && (
           <div className="max-w-md mx-auto text-center space-y-4">
             <div id="reader-ramadhan" className="overflow-hidden rounded-lg border-2 border-orange-500 min-h-[300px] bg-black"></div>
-            
             <form onSubmit={handleScanInput} className="flex gap-2">
               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Alat Tembak..." className="flex-1 border p-2 rounded" autoFocus />
               <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
             </form>
-            <p className="text-sm text-gray-500 italic font-medium">Arahkan Barcode ke Kamera atau Gunakan Alat Scan</p>
+            <p className="text-sm text-gray-500 italic font-medium">Hanya Scan yang mencatat 'Hadir'</p>
           </div>
         )}
 
@@ -1466,11 +1442,12 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
                         <tr key={s.id} className="border-b">
                             <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
                             <td className="p-2 flex gap-1">
-                                {['Sakit', 'Izin', 'Hadir'].map(status => (
+                                {/* HILANGKAN TOMBOL HADIR, TAMBAH ALFA/HAID */}
+                                {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
                                     <button key={status} 
                                         disabled={isRec && st !== status}
-                                        onClick={() => handleManual(s.id, status)} 
-                                        className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        onClick={() => processAttendance(s.id, status, 'Manual')} 
+                                        className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>
                                         {status}
                                     </button>
                                 ))}
@@ -1483,6 +1460,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
+        {/* REKAP & SETTINGS SAMA SEPERTI KODE SEBELUMNYA */}
         {(tab === 'rekap-harian' || tab === 'rekap-total') && isPrivileged && (
           <div>
              <div className="flex gap-2 mb-4 no-print">
@@ -1767,6 +1745,8 @@ const SignatureSection = ({ user, rank, month, year }) => {
 
 // --- APP COMPONENT (YANG SUDAH DIPERBAIKI AGAR SINKRON REAL-TIME) ---
 
+// --- APP COMPONENT (SINKRONISASI REAL-TIME & DATA HANDLING) ---
+
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
@@ -1780,7 +1760,7 @@ const App = () => {
   const [holidays, setHolidays] = useState(['2024-03-11']); 
   const [userProfiles, setUserProfiles] = useState({}); 
 
-  // 1. CEK SESI LOGIN (Tetap pakai localStorage hanya untuk sesi user)
+  // 1. CEK SESI LOGIN
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedUser = localStorage.getItem('currentUser');
@@ -1788,8 +1768,6 @@ const App = () => {
         setCurrentUser(JSON.parse(savedUser));
         setView('dashboard');
       }
-      
-      // Load user profiles & holidays (Data statis/jarang berubah boleh di local)
       const savedProfiles = localStorage.getItem('userProfiles');
       if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
     }
@@ -1797,18 +1775,18 @@ const App = () => {
 
   // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME)
   useEffect(() => {
-    // A. Fungsi untuk menarik semua data terbaru dari Supabase saat aplikasi dibuka
+    // Fungsi pembantu untuk menstandarkan data (student_id dari DB menjadi studentId untuk aplikasi)
+    const normalizeData = (data) => data.map(d => ({ ...d, studentId: d.student_id }));
+
+    // A. Tarik Data Awal
     const fetchCloudData = async () => {
-      // Ambil Absensi Berjamaah & Ramadhan & Kesiangan
-      // Kita ambil data hari ini saja agar aplikasi tidak berat (Opsional: bisa diatur rentang waktunya)
-      // const today = new Date().toISOString().split('T')[0]; 
-      
-      // Mengambil SEMUA data (Hati-hati jika data sudah ribuan, sebaiknya difilter per bulan)
+      // Ambil Absensi
       const { data: attendance } = await supabase.from('attendance').select('*');
       if (attendance) {
-        setAttendanceData(attendance.filter(d => d.category === 'berjamaah'));
-        setRamadhanData(attendance.filter(d => d.category === 'ramadhan'));
-        setLateData(attendance.filter(d => d.category === 'kesiangan'));
+        const normalized = normalizeData(attendance);
+        setAttendanceData(normalized.filter(d => d.category === 'berjamaah'));
+        setRamadhanData(normalized.filter(d => d.category === 'ramadhan'));
+        setLateData(normalized.filter(d => d.category === 'kesiangan'));
       }
 
       // Ambil LCKH
@@ -1818,44 +1796,50 @@ const App = () => {
 
     fetchCloudData();
 
-    // B. MENGAKTIFKAN REAL-TIME (Agar Si B langsung lihat inputan Si A tanpa refresh)
+    // B. Real-time Subscription (Multi-Device Sync)
     const channel = supabase.channel('public-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'attendance' },
-        (payload) => {
-          // Jika ada data BARU (INSERT)
-          if (payload.eventType === 'INSERT') {
-            const newData = payload.new;
-            if (newData.category === 'berjamaah') {
-              setAttendanceData((prev) => [...prev, { ...newData, studentId: newData.student_id }]);
-            } else if (newData.category === 'ramadhan') {
-              setRamadhanData((prev) => [...prev, { ...newData, studentId: newData.student_id }]);
-            } else if (newData.category === 'kesiangan') {
-              setLateData((prev) => [...prev, { ...newData, studentId: newData.student_id, studentName: newData.student_name, class: newData.student_class }]);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, (payload) => {
+          // Handler generik untuk update state lokal berdasarkan event DB
+          const handleUpdate = (prevList, payload) => {
+            if (payload.eventType === 'INSERT') {
+              const newData = { ...payload.new, studentId: payload.new.student_id };
+              // Cek double just in case
+              if (prevList.find(i => i.id === newData.id)) return prevList;
+              return [...prevList, newData];
+            } 
+            else if (payload.eventType === 'UPDATE') {
+              return prevList.map(item => item.id === payload.new.id ? { ...payload.new, studentId: payload.new.student_id } : item);
+            } 
+            else if (payload.eventType === 'DELETE') {
+              return prevList.filter(item => item.id !== payload.old.id);
             }
+            return prevList;
+          };
+
+          const category = payload.new?.category || payload.old?.category; // Handle delete case requiring old record check if possible, or fetch all.
+          // Simplifikasi: Refresh state spesifik sesuai kategori data yang masuk/ubah
+          if (payload.eventType === 'DELETE' || payload.new) {
+             // Karena payload.old pada DELETE seringkali cuma ID, kita update semua state untuk aman
+             // Atau lebih efisien: cek ID di masing-masing state
+             setAttendanceData(prev => handleUpdate(prev, payload));
+             setRamadhanData(prev => handleUpdate(prev, payload));
+             setLateData(prev => handleUpdate(prev, payload));
           }
-          // (Opsional: Tambahkan logika untuk UPDATE dan DELETE jika diperlukan)
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lckh' },
-        (payload) => {
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lckh' }, (payload) => {
            if (payload.eventType === 'INSERT') {
-             setLckhData((prev) => [...prev, { ...payload.new, userId: payload.new.user_nip, desc: payload.new.description }]);
+             setLckhData(prev => [...prev, { ...payload.new, userId: payload.new.user_nip }]);
+           } else if (payload.eventType === 'DELETE') {
+             setLckhData(prev => prev.filter(i => i.id !== payload.old.id));
+           } else if (payload.eventType === 'UPDATE') {
+             setLckhData(prev => prev.map(i => i.id === payload.new.id ? payload.new : i));
            }
-        }
-      )
+      })
       .subscribe();
 
-    // Cleanup saat komponen ditutup
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Simpan profil ke lokal (LCKH & Attendance JANGAN disimpan ke local storage lagi agar selalu ambil fresh dari cloud)
   useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
 
   const handleLogin = (identifier, password) => {
@@ -1864,27 +1848,19 @@ const App = () => {
       const userSession = { ...teacher, role: teacher.role || 'teacher' };
       setCurrentUser(userSession); 
       localStorage.setItem('currentUser', JSON.stringify(userSession));
-      setView('dashboard'); 
-      return; 
+      setView('dashboard'); return; 
     }
     const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
     if (staff) { 
       const userSession = { ...staff, role: 'staff' };
       setCurrentUser(userSession); 
       localStorage.setItem('currentUser', JSON.stringify(userSession));
-      setView('dashboard'); 
-      return; 
+      setView('dashboard'); return; 
     }
     alert('Login Gagal! NIP/NISN atau Password salah.');
   };
 
-  const logout = () => { 
-    setCurrentUser(null); 
-    localStorage.removeItem('currentUser');
-    setView('login'); 
-    setIsMobileMenuOpen(false); 
-  };
-  
+  const logout = () => { setCurrentUser(null); localStorage.removeItem('currentUser'); setView('login'); setIsMobileMenuOpen(false); };
   const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
 
   if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
@@ -1892,14 +1868,10 @@ const App = () => {
   return (
     <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row">
       <style>{styles}</style>
-      
-      {/* Mobile Header */}
       <div className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center no-print sticky top-0 z-50 shadow-md">
          <span className="font-bold text-lg">MTsN 3 Tasikmalaya</span>
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2"><Menu size={24} /></button>
       </div>
-
-      {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="bg-green-900 w-64 h-full shadow-lg" onClick={e => e.stopPropagation()}>
@@ -1907,12 +1879,9 @@ const App = () => {
           </div>
         </div>
       )}
-
-      {/* Desktop Sidebar */}
       <div className="hidden md:flex w-64 flex-col no-print h-screen sticky top-0">
          <SidebarContent user={currentUser} currentView={view} setView={setView} logout={logout} />
       </div>
-
       <main className="flex-1 p-4 md:p-6 overflow-y-auto print-container w-full">
         {view === 'dashboard' && <Dashboard user={currentUser} />}
         {view === 'absen-berjamaah' && <AbsenBerjamaah user={currentUser} data={attendanceData} setData={setAttendanceData} holidays={holidays} setHolidays={setHolidays} />}
