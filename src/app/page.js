@@ -835,21 +835,157 @@ const getShortDate = (dateStr) => {
 };
 
 // --- STYLES ---
+// --- STYLES ---
 const styles = `
-@media print {
-  @page { size: A4; margin: 1cm; }
-  .no-print { display: none !important; }
-  .print-break { page-break-after: always; height: 0; display: block; }
-  body { background: white; color: black; -webkit-print-color-adjust: exact; }
-  .print-container { box-shadow: none !important; width: 100%; border: none !important; margin: 0; padding: 0; }
-  .a4-page { min-height: auto; padding: 0; box-shadow: none !important; margin: 0; border: none !important; }
-  * { box-shadow: none !important; text-shadow: none !important; }
-  table { font-size: 10pt; width: 100%; }
-  th, td { padding: 4px; }
-  nav, aside, header, footer { display: none !important; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+
+/* --- GLOBAL RESET --- */
+* { box-sizing: border-box; }
+
+body, html { 
+  margin: 0; 
+  padding: 0;
+  font-family: 'Times New Roman', serif;
+  -webkit-print-color-adjust: exact !important; 
+  print-color-adjust: exact !important;
 }
-.whitespace-nowrap { white-space: nowrap; }
+
+/* --- KERTAS A4 (Sama Persis di Layar & Print) --- */
+.sheet {
+  background: white;
+  width: 210mm;        /* Lebar A4 */
+  min-height: 297mm;   /* Tinggi Minimum A4 */
+  
+  /* MARGIN KERTAS (Padding Dalam) */
+  /* Atas 1.5cm, Kanan 1.5cm, Bawah 2cm, Kiri 1.5cm */
+  padding: 15mm 15mm 20mm 15mm; 
+  
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- TABEL --- */
+table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  margin-top: 5px; 
+  margin-bottom: 10px; 
+  font-size: 9pt; 
+}
+
+thead th {
+  background-color: #e5e7eb !important; 
+  font-weight: bold;
+  text-align: center;
+  border: 1px solid #000;
+  vertical-align: middle;
+  padding: 5px 2px;
+}
+
+tbody td { 
+  border: 1px solid #000; 
+  vertical-align: top; 
+  padding: 4px 4px;
+  line-height: 1.1;
+}
+
+/* --- HEADER LAPORAN --- */
+.report-header { 
+  font-family: Arial, sans-serif; 
+  text-align: center; 
+  margin-bottom: 15px;
+}
+.report-header h1 { 
+  font-size: 12pt; margin: 0; text-decoration: underline; font-weight: bold; 
+}
+.report-header h2 { 
+  font-size: 10pt; margin: 2px 0 10px 0; text-transform: uppercase; font-weight: bold; 
+}
+.header-identity {
+  font-size: 9pt; line-height: 1.2; text-align: left;
+}
+
+.signature-section { margin-top: 20px; page-break-inside: avoid; }
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.font-bold { font-weight: bold; }
+
+/* =========================================
+   MODE LAYAR (PREVIEW)
+   ========================================= */
+@media screen {
+  /* Area abu-abu di belakang kertas */
+  .preview-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    background: #52525b; /* Abu gelap */
+    border-radius: 8px;
+    margin: 20px; /* Jarak dari menu/atas */
+    overflow: auto;
+  }
+  
+  .sheet {
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4); /* Efek bayangan */
+  }
+}
+
+/* =========================================
+   MODE CETAK (PRINT / PDF) - PERBAIKAN
+   ========================================= */
+@media print {
+  @page { 
+    size: A4; 
+    margin: 0 !important; /* Reset margin printer */
+  }
+  
+  /* 1. Sembunyikan elemen UI yang mengganggu */
+  .no-print, nav, aside, header, footer, button, .mobile-header, .sidebar, ::-webkit-scrollbar { 
+    display: none !important; 
+  }
+
+  /* 2. Reset Layout Utama agar tidak mengganggu posisi */
+  body, html, main, .app-layout {
+    background: white !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+  }
+
+  /* 3. TEKNIK OVERLAY: Paksa Wrapper Preview menutupi semuanya */
+  .preview-wrapper {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    z-index: 9999 !important; /* Pastikan di paling atas layer */
+  }
+
+  /* 4. Atur Sheet/Kertas */
+  .sheet {
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always !important;
+    width: 210mm !important;
+    /* Tinggi auto agar halaman terakhir tidak kosong */
+    min-height: auto !important; 
+    height: auto !important; 
+  }
+  
+  /* Hapus page-break di halaman terakhir */
+  .sheet:last-child {
+    page-break-after: auto !important;
+  }
+}
 `;
 
 // --- SUB-COMPONENTS (DEFINED BEFORE APP) ---
@@ -859,25 +995,94 @@ const LoginScreen = ({ onLogin }) => {
   const [pass, setPass] = useState('');
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-green-800 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <div className="text-center mb-6">
-          <img src="logo kemenag.png" alt="Logo Kemenag" className="h-16 mx-auto mb-2" />
-          <h1 className="text-2xl font-bold text-green-900">MTs Negeri 3</h1>
-          <h2 className="text-lg font-semibold text-gray-600">Kota Tasikmalaya</h2>
-          <p className="text-sm text-gray-400 mt-2">Sistem Informasi Manajemen Madrasah</p>
+    <div className="min-h-screen flex w-full bg-white">
+      {/* BAGIAN KIRI: FORM LOGIN */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16 bg-white z-10 shadow-2xl md:shadow-none">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center md:text-left">
+            <div className="flex justify-center md:justify-start mb-4">
+               <Image src="/logo kemenag.png" alt="Logo" width={80} height={80} />
+            </div>
+            <h1 className="text-3xl font-extrabold text-green-900 tracking-tight">Selamat Datang</h1>
+            <p className="text-gray-500 mt-2">Silahkan masuk ke Sistem Informasi Manajemen Madrasah</p>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); onLogin(id, pass); }} className="space-y-6 mt-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NIP / NISN</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User size={20} className="text-gray-400" />
+                </div>
+                <input 
+                  type="text" 
+                  name="username" id="username" autoComplete="username"
+                  value={id} onChange={e => setId(e.target.value)} 
+                  className="pl-10 w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black font-semibold transition-all" 
+                  placeholder="Masukkan Nomor Induk" required 
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock size={20} className="text-gray-400" />
+                </div>
+                <input 
+                  type="password" 
+                  name="password" id="password" autoComplete="current-password"
+                  value={pass} onChange={e => setPass(e.target.value)} 
+                  className="pl-10 w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black font-semibold transition-all" 
+                  placeholder="••••••••" required 
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+              Masuk Aplikasi
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center text-xs text-gray-400">
+            &copy; 2026 MTs Negeri 3 Kota Tasikmalaya. All rights reserved.
+          </div>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); onLogin(id, pass); }} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">NIP / NISN</label>
-            <input type="text" value={id} onChange={e => setId(e.target.value)} className="w-full border p-2 rounded" placeholder="Masukkan NIP atau NISN" required />
+      </div>
+
+      {/* BAGIAN KANAN: HEADLINE & GAMBAR (Hanya muncul di Layar Besar/Desktop) */}
+      <div className="hidden md:flex w-1/2 bg-green-800 relative overflow-hidden items-center justify-center">
+        {/* Placeholder Gambar Sekolah - Ganti 'src' dengan path foto madrasah Anda */}
+        <div className="absolute inset-0 z-0">
+           {/* Contoh jika pakai Next.js Image, atau ganti <img> biasa */}
+           <img 
+             src="/gerbang madrasah.jpg" /* GANTI INI DENGAN FILE FOTO MADRASAH */
+             alt="gerbang Madrasah" 
+             className="w-full h-full object-cover opacity-30 mix-blend-overlay"
+             onError={(e) => {e.target.style.display='none'}} // Fallback jika tidak ada gambar
+           />
+           {/* Overlay Gradient */}
+           <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 to-green-700/80"></div>
+        </div>
+
+        {/* Konten Teks Kanan */}
+        <div className="relative z-10 text-center px-12 text-white max-w-lg">
+          <div className="mb-6 inline-block p-3 bg-white/10 rounded-full backdrop-blur-sm border border-white/20">
+             <QrCode size={40} className="text-yellow-300" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" value={pass} onChange={e => setPass(e.target.value)} className="w-full border p-2 rounded" placeholder="********" required />
+          <h2 className="text-4xl font-bold mb-4 leading-tight">MTs Negeri 3<br/><span className="text-yellow-300">Kota Tasikmalaya</span></h2>
+          <p className="text-green-100 text-lg leading-relaxed">
+            "Maju, Bermutu, Mendunia."
+          </p>
+          
+          {/* Dekorasi Garis */}
+          <div className="mt-8 flex justify-center gap-2">
+            <div className="h-1 w-12 bg-yellow-400 rounded"></div>
+            <div className="h-1 w-4 bg-white/30 rounded"></div>
+            <div className="h-1 w-4 bg-white/30 rounded"></div>
           </div>
-          <button type="submit" className="w-full bg-green-700 text-white py-2 rounded hover:bg-green-800">Masuk</button>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1039,7 +1244,12 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     if (tab === 'scan') {
       import("html5-qrcode").then((plugin) => {
         scanner = new plugin.Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 300, height: 300 }, // Diperbesar dari 250
+          aspectRatio: 1.0 
+      };
+
         scanner.start(
           { facingMode: "environment" }, 
           config, 
@@ -1103,7 +1313,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       <div className="bg-white p-4 rounded shadow min-h-[400px]">
         {tab === 'scan' && (
           <div className="max-w-lg mx-auto text-center space-y-4">
-            <div className="h-64 bg-black rounded-lg overflow-hidden border-2 border-green-600">
+            <div className="w-full h-[500px] bg-black rounded-lg overflow-hidden border-2 border-green-600">
                <div id="reader" className="w-full h-full"></div>
             </div>
             <form onSubmit={handleScanInput} className="flex gap-2">
@@ -1552,6 +1762,84 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   );
 };
 
+// --- KOMPONEN COVER HALAMAN DEPAN ---
+const CoverPage = ({ user, month, year }) => {
+  return (
+    <div className="a4-page relative h-[250mm] w-full bg-white overflow-hidden flex flex-col justify-center pl-8 pr-4 text-left font-sans">
+      
+      {/* --- HIASAN GEOMETRIS (Tetap ada, tapi container z-index diatur) --- */}
+      {/* Pojok Kanan Atas */}
+      <div className="absolute top-0 right-0 w-[250px] h-[250px] pointer-events-none opacity-90">
+         <div className="absolute top-0 right-0 w-0 h-0 border-l-[120px] border-l-transparent border-t-[120px] border-t-teal-600"></div>
+         <div className="absolute top-[50px] right-[50px] w-16 h-16 bg-orange-400 rounded-full opacity-80"></div>
+         <div className="absolute top-0 right-[120px] w-0 h-0 border-l-[80px] border-l-transparent border-t-[80px] border-t-yellow-400 opacity-90"></div>
+      </div>
+
+      {/* Pojok Kiri Bawah */}
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] pointer-events-none opacity-90">
+         <div className="absolute bottom-0 left-0 w-0 h-0 border-r-[160px] border-r-transparent border-b-[160px] border-b-orange-500"></div>
+         <div className="absolute bottom-[40px] left-[40px] w-24 h-24 bg-teal-700 rounded-full opacity-90"></div>
+         <div className="absolute bottom-0 left-[160px] w-0 h-0 border-r-[120px] border-r-transparent border-b-[120px] border-b-yellow-500 opacity-80"></div>
+         <div className="absolute bottom-[140px] left-0 w-0 h-0 border-r-[80px] border-r-transparent border-b-[80px] border-b-teal-500 opacity-80"></div>
+      </div>
+
+      {/* --- KONTEN TEKS (Ukuran Font Diperkecil) --- */}
+      <div className="relative z-10 space-y-1 mt-[-60px]"> {/* Margin top negatif dikurangi */}
+        {/* LOGO KEMENAG */}
+        <div className="mb-6">
+          <img 
+            src="/logo kemenag.png" 
+            alt="Logo Kementerian Agama" 
+            className="w-28 h-auto" /* Ukuran logo disesuaikan (lebar 28 tailwind / 7rem) */
+          />
+        </div>
+        
+        {/* Tagline Kecil */}
+        <p className="text-gray-500 italic text-xs mb-3">Maju, bermutu, dan mendunia</p>
+
+        {/* Instansi - Font size dikurangi dari 5xl ke 4xl/3xl */}
+        <h1 className="text-4xl font-extrabold text-teal-900 leading-tight tracking-wide">
+          MTS NEGERI 3<br />
+          KOTA TASIKMALAYA
+        </h1>
+
+        {/* Garis Dekorasi - Lebih tipis/pendek */}
+        <div className="w-24 h-1.5 bg-orange-500 my-6"></div>
+
+        {/* Judul Laporan - Font size dikurangi */}
+        <h2 className="text-3xl font-bold text-gray-800 tracking-wide">
+          LAPORAN KINERJA<br />
+          BULANAN
+        </h2>
+
+        {/* Bulan & Tahun */}
+        <p className="text-xl text-gray-600 font-medium mt-2 mb-10">
+          Bulan {MONTHS[month]} {year}
+        </p>
+
+        {/* Identitas Guru - Padding dikurangi */}
+        <div className="space-y-1 mt-8">
+          <p className="text-sm text-gray-500 mb-1">Disusun Oleh:</p>
+          <h3 className="text-2xl font-bold text-black uppercase">{user.name}</h3>
+          <p className="text-lg text-gray-700 font-semibold tracking-wide">NIP. {user.nip}</p>
+        </div>
+
+        {/* Daftar Isi Singkat - Font size dikurangi */}
+        <div className="mt-12 space-y-1 text-base text-gray-500 font-medium border-l-4 border-gray-300 pl-4">
+          <p>1. Laporan Capaian Kinerja Bulanan</p>
+          <p>2. Laporan Capaian Kinerja Harian</p>
+          <p>3. Presensi Kehadiran</p>
+        </div>
+      </div>
+
+      {/* Tahun di Pojok Kanan Bawah */}
+      <div className="absolute bottom-8 right-8 text-5xl font-bold text-gray-200 select-none">
+        {year}
+      </div>
+
+    </div>
+  );
+};
 const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
   const [mode, setMode] = useState('input');
   const [profile, setProfile] = useState(profiles[user.nip] || { golongan: 'III.a' });
@@ -1599,18 +1887,10 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
     window.scrollTo(0,0);
   };
 
-const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data LCKH ini dari Cloud Supabase?')) {
-      // 1. Perintah hapus ke Supabase berdasarkan ID
+  const handleDelete = async (id) => {
+    if (window.confirm('Hapus data LCKH ini?')) {
       const { error } = await supabase.from('lckh').delete().eq('id', id);
-
-      if (!error) {
-        // 2. Jika berhasil di Cloud, hapus juga dari tampilan (State)
-        setData(data.filter(i => i.id !== id));
-        alert('Data berhasil dihapus secara permanen!');
-      } else {
-        alert('Gagal menghapus: ' + error.message);
-      }
+      if (!error) setData(data.filter(i => i.id !== id));
     }
   };
 
@@ -1626,18 +1906,19 @@ const handleDelete = async (id) => {
 
   return (
     <div className="space-y-6">
+      {/* Tombol Navigasi Utama */}
       <div className="flex justify-between items-center no-print">
          <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList /> LCKH & LKB</h2>
          <div className="flex gap-2">
-            <button onClick={() => setMode('input')} className={`px-4 py-2 rounded ${mode === 'input' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Input</button>
-            <button onClick={() => setMode('print-view')} className={`px-4 py-2 rounded ${mode === 'print-view' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Cetak</button>
+           <button onClick={() => setMode('input')} className={`px-4 py-2 rounded ${mode === 'input' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Input</button>
+           <button onClick={() => setMode('print-view')} className={`px-4 py-2 rounded ${mode === 'print-view' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Cetak</button>
          </div>
       </div>
 
-{mode === 'input' && (
+      {mode === 'input' && (
         <div className="space-y-6">
-          {/* BARIS ATAS: PROFIL & INPUT BERDAMPINGAN */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Panel Kiri: Profil */}
             <div className="bg-white p-4 rounded shadow h-fit">
               <h3 className="font-bold border-b pb-2 mb-4 text-green-700">Profil</h3>
               <div className="space-y-3">
@@ -1648,8 +1929,9 @@ const handleDelete = async (id) => {
               </div>
             </div>
 
+            {/* Panel Tengah: Form Input */}
             <div className="md:col-span-2 bg-white p-4 rounded shadow">
-              <h3 className="font-bold border-b pb-2 mb-4 text-green-700">{editingId ? 'Edit Kegiatan' : 'Input Kegiatan'}</h3>
+              <h3 className="font-bold border-b pb-2 mb-4 text-green-700">{editingId ? 'Edit' : 'Input'}</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="text-sm">Tanggal</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full border p-2 rounded" required /></div>
@@ -1667,78 +1949,123 @@ const handleDelete = async (id) => {
               </form>
             </div>
           </div>
-
-          {/* BARIS BAWAH: RIWAYAT LEBAR PENUH (FULL WIDTH) */}
+          
+          {/* Tabel Input Preview */}
           <div className="bg-white p-4 rounded shadow">
-            <div className="flex justify-between items-center border-b pb-2 mb-4">
-              <h3 className="font-bold text-green-800">Riwayat Kegiatan</h3>
-              <div className="flex gap-1">
-                <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border text-sm p-1 rounded">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-                <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border text-sm p-1 rounded">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-green-50 text-left">
-                    <th className="p-3 border-b">Tgl</th>
-                    <th className="p-3 border-b">Kegiatan</th>
-                    <th className="p-3 border-b">Vol</th>
-                    <th className="p-3 border-b">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedData.length === 0 ? (
-                    <tr><td colSpan="4" className="p-4 text-center text-gray-500">Belum ada data untuk periode ini.</td></tr>
-                  ) : (
-                    sortedData.map(i => (
-                      <tr key={i.id} className="border-b hover:bg-gray-50">
-                        <td className="p-3 whitespace-nowrap">{getShortDate(i.date)}</td>
-                        <td className="p-3">{i.activity}</td>
-                        <td className="p-3">{i.volume} {i.unit}</td>
-                        <td className="p-3 flex gap-3">
-                          <button onClick={() => handleEdit(i)} className="text-blue-600 flex items-center gap-1"><Edit size={14}/> Edit</button>
-                          <button onClick={() => handleDelete(i.id)} className="text-red-600 flex items-center gap-1"><Trash2 size={14}/> Hapus</button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+             <table className="w-full text-sm border-collapse">
+               <thead><tr className="bg-green-50 text-left"><th className="p-3 border-b">Tgl</th><th className="p-3 border-b">Kegiatan</th><th className="p-3 border-b">Vol</th><th className="p-3 border-b">Aksi</th></tr></thead>
+               <tbody>
+                 {sortedData.length === 0 ? <tr><td colSpan="4" className="p-4 text-center">Belum ada data.</td></tr> : sortedData.map(i => (
+                     <tr key={i.id} className="border-b hover:bg-gray-50">
+                       <td className="p-3">{getShortDate(i.date)}</td><td className="p-3">{i.activity}</td><td className="p-3">{i.volume} {i.unit}</td>
+                       <td className="p-3 flex gap-3"><button onClick={() => handleEdit(i)} className="text-blue-600"><Edit size={14}/></button><button onClick={() => handleDelete(i.id)} className="text-red-600"><Trash2 size={14}/></button></td>
+                     </tr>
+                 ))}
+               </tbody>
+             </table>
           </div>
         </div>
       )}
 
+      {/* --- MODE CETAK (PREVIEW & PDF SAMA PERSIS) --- */}
       {mode === 'print-view' && (
-        <div className="bg-gray-100 p-4">
-           <div className="no-print mb-4 flex flex-wrap justify-between items-center gap-2">
-              <div className="flex gap-2 items-center">
-                <label className="font-bold text-sm">Pilih Periode Cetak:</label>
-                <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-                <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
-              </div>
-              <button onClick={() => window.print()} className="bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2 shadow hover:bg-blue-800"><Printer size={18}/> Cetak PDF A4</button>
+        <div className="w-full">
+           {/* Kontrol Navigasi (Hanya muncul di Layar, di dalam container utama) */}
+           <div className="no-print p-4 bg-white shadow mb-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border">
+             <div className="flex gap-4 items-center">
+               <label className="font-bold text-gray-700">Periode:</label>
+               <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded-md bg-gray-50 text-sm">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+               <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded-md bg-gray-50 text-sm">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
+             </div>
+             <div className="flex gap-2">
+                <button onClick={() => window.print()} className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md font-bold text-sm">
+                  <Printer size={18}/> Cetak PDF
+                </button>
+             </div>
            </div>
-
-           <div className="print-container mx-auto bg-white shadow-lg print:shadow-none">
-              <div className="a4-page p-8 relative">
+           
+           {/* Area Kertas (Preview Wrapper) */}
+           <div className="preview-wrapper">
+             
+             {/* HALAMAN 1: COVER */}
+             <div className="sheet">
+               <CoverPage user={user} month={printMonth} year={printYear} />
+             </div>
+             
+             {/* HALAMAN 2: LKB */}
+             <div className="sheet">
                  <ReportHeader title="LAPORAN KINERJA BULANAN" user={user} rank={userRank} month={printMonth} year={printYear} />
-                 <table className="w-full border-collapse border border-black mt-4 text-sm">
-                   <thead><tr className="bg-gray-200 text-center font-bold"><td className="border border-black p-2 w-[5%]">No.</td><td className="border border-black p-2 w-[35%]">Kegiatan</td><td className="border border-black p-2 w-[10%]">Volume</td><td className="border border-black p-2 w-[10%]">Satuan</td><td className="border border-black p-2 w-[40%]">Bukti Dokumen</td></tr></thead>
-                   <tbody>{lkbData.map((item, idx) => <tr key={idx}><td className="border border-black p-2 text-center">{idx + 1}</td><td className="border border-black p-2">{item.activity}</td><td className="border border-black p-2 text-center">{item.volume}</td><td className="border border-black p-2 text-center">{item.unit}</td><td className="border border-black p-2">{item.doc}</td></tr>)}</tbody>
+                 
+                 <table>
+                   <thead>
+                     <tr>
+                       <th style={{width: '5%'}}>No</th>
+                       <th style={{width: '40%'}}>Kegiatan Tugas Jabatan</th>
+                       <th style={{width: '10%'}}>Vol</th>
+                       <th style={{width: '10%'}}>Satuan</th>
+                       <th style={{width: '35%'}}>Bukti Dokumen</th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {lkbData.length === 0 ? (
+                       <tr><td colSpan="5" className="text-center py-8 italic">Belum ada data kinerja bulanan.</td></tr>
+                     ) : (
+                       lkbData.map((item, idx) => (
+                         <tr key={idx}>
+                           <td className="text-center">{idx + 1}</td>
+                           <td className="text-left">{item.activity}</td>
+                           <td className="text-center">{item.volume}</td>
+                           <td className="text-center">{item.unit}</td>
+                           <td className="text-left">{item.doc}</td>
+                         </tr>
+                       ))
+                     )}
+                   </tbody>
                  </table>
-                 <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
-              </div>
-              <div className="print-break"></div>
-              <div className="a4-page p-8 relative">
+
+                 <div className="signature-section">
+                    <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
+                 </div>
+             </div>
+
+             {/* HALAMAN 3: LCKH */}
+             <div className="sheet last-page">
                  <ReportHeader title="LAPORAN CAPAIAN KINERJA HARIAN (LCKH)" user={user} rank={userRank} month={printMonth} year={printYear} />
-                 <table className="w-full border-collapse border border-black mt-4 text-sm">
-                   <thead><tr className="bg-gray-200 text-center font-bold"><td className="border border-black p-2 w-[5%]">No.</td><td className="border border-black p-2 w-[12%]">Tanggal</td><td className="border border-black p-2 w-[23%]">Kegiatan</td><td className="border border-black p-2 w-[40%]">Uraian Kegiatan</td><td className="border border-black p-2 w-[10%]">Vol</td><td className="border border-black p-2 w-[10%]">Sat</td></tr></thead>
-                   <tbody>{sortedData.map((item, idx) => <tr key={item.id}><td className="border border-black p-2 text-center">{idx + 1}</td><td className="border border-black p-2 text-center">{getShortDate(item.date)}</td><td className="border border-black p-2">{item.activity}</td><td className="border border-black p-2">{item.desc}</td><td className="border border-black p-2 text-center">{item.volume}</td><td className="border border-black p-2 text-center">{item.unit}</td></tr>)}</tbody>
+                 
+                 <table>
+                   <thead>
+                     <tr>
+                       <th style={{width: '5%'}}>No</th>
+                       <th style={{width: '12%'}}>Tanggal</th>
+                       <th style={{width: '25%'}}>Kegiatan</th>
+                       <th style={{width: '38%'}}>Uraian Kegiatan</th>
+                       <th style={{width: '10%'}}>Vol</th>
+                       <th style={{width: '10%'}}>Satuan</th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {sortedData.length === 0 ? (
+                       <tr><td colSpan="6" className="text-center py-8 italic">Belum ada kegiatan harian di bulan ini.</td></tr>
+                     ) : (
+                       sortedData.map((item, idx) => (
+                         <tr key={item.id}>
+                           <td className="text-center">{idx + 1}</td>
+                           <td className="text-center whitespace-nowrap">{getShortDate(item.date)}</td>
+                           <td className="text-left">{item.activity}</td>
+                           <td className="text-left">{item.desc}</td>
+                           <td className="text-center">{item.volume}</td>
+                           <td className="text-center">{item.unit}</td>
+                         </tr>
+                       ))
+                     )}
+                   </tbody>
                  </table>
-                 <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
-              </div>
+
+                 <div className="signature-section">
+                    <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
+                 </div>
+             </div>
+
            </div>
         </div>
       )}
@@ -1798,6 +2125,7 @@ const App = () => {
   const [view, setView] = useState('login'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // ... (State & Effect Code sama persis, tidak perlu diubah) ...
   // Global State
   const [attendanceData, setAttendanceData] = useState([]);
   const [lateData, setLateData] = useState([]);
@@ -1819,14 +2147,10 @@ const App = () => {
     }
   }, []);
 
-  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME)
+  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME) - SAMA PERSIS KODE SEBELUMNYA
   useEffect(() => {
-    // Fungsi pembantu untuk menstandarkan data (student_id dari DB menjadi studentId untuk aplikasi)
     const normalizeData = (data) => data.map(d => ({ ...d, studentId: d.student_id }));
-
-    // A. Tarik Data Awal
     const fetchCloudData = async () => {
-      // Ambil Absensi
       const { data: attendance } = await supabase.from('attendance').select('*');
       if (attendance) {
         const normalized = normalizeData(attendance);
@@ -1834,22 +2158,16 @@ const App = () => {
         setRamadhanData(normalized.filter(d => d.category === 'ramadhan'));
         setLateData(normalized.filter(d => d.category === 'kesiangan'));
       }
-
-      // Ambil LCKH
       const { data: lckh } = await supabase.from('lckh').select('*');
       if (lckh) setLckhData(lckh);
     };
-
     fetchCloudData();
 
-    // B. Real-time Subscription (Multi-Device Sync)
     const channel = supabase.channel('public-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, (payload) => {
-          // Handler generik untuk update state lokal berdasarkan event DB
           const handleUpdate = (prevList, payload) => {
             if (payload.eventType === 'INSERT') {
               const newData = { ...payload.new, studentId: payload.new.student_id };
-              // Cek double just in case
               if (prevList.find(i => i.id === newData.id)) return prevList;
               return [...prevList, newData];
             } 
@@ -1861,12 +2179,7 @@ const App = () => {
             }
             return prevList;
           };
-
-          const category = payload.new?.category || payload.old?.category; // Handle delete case requiring old record check if possible, or fetch all.
-          // Simplifikasi: Refresh state spesifik sesuai kategori data yang masuk/ubah
           if (payload.eventType === 'DELETE' || payload.new) {
-             // Karena payload.old pada DELETE seringkali cuma ID, kita update semua state untuk aman
-             // Atau lebih efisien: cek ID di masing-masing state
              setAttendanceData(prev => handleUpdate(prev, payload));
              setRamadhanData(prev => handleUpdate(prev, payload));
              setLateData(prev => handleUpdate(prev, payload));
@@ -1882,7 +2195,6 @@ const App = () => {
            }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -1912,7 +2224,7 @@ const App = () => {
   if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row">
+    <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row app-layout">
       <style>{styles}</style>
       <div className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center no-print sticky top-0 z-50 shadow-md">
          <span className="font-bold text-lg">MTsN 3 Tasikmalaya</span>
@@ -1928,7 +2240,10 @@ const App = () => {
       <div className="hidden md:flex w-64 flex-col no-print h-screen sticky top-0">
          <SidebarContent user={currentUser} currentView={view} setView={setView} logout={logout} />
       </div>
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto print-container w-full">
+      {/* PERBAIKAN DISINI: HAPUS CLASS 'print-container' 
+         Class ini sekarang hanya untuk @media print di CSS 
+      */}
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto w-full">
         {view === 'dashboard' && <Dashboard user={currentUser} />}
         {view === 'absen-berjamaah' && <AbsenBerjamaah user={currentUser} data={attendanceData} setData={setAttendanceData} holidays={holidays} setHolidays={setHolidays} />}
         {view === 'absen-kesiangan' && <AbsenKesiangan user={currentUser} data={lateData} setData={setLateData} />}
