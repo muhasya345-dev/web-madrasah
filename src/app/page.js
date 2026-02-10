@@ -966,6 +966,9 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const [rekapMonth, setRekapMonth] = useState(new Date().getMonth());
   const [rekapYear, setRekapYear] = useState(new Date().getFullYear());
   const currentDate = new Date().toISOString().split('T')[0];
+  
+  // REF UNTUK MENCEGAH SPAM SCAN (Debounce)
+  const lastScanRef = useRef({ code: '', timestamp: 0 });
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-bulanan'] : ['scan', 'manual'];
@@ -978,22 +981,38 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  // --- LOGIKA UTAMA (SCAN & MANUAL) ---
+  // --- LOGIKA VALIDASI & SIMPAN (DIGUNAKAN OLEH SCAN & MANUAL) ---
   const processAttendance = async (studentId, status, viaMethod) => {
+    // 1. Cek Hari Libur
     if (!isWorkingDay(currentDate)) {
-        alert('Hari Libur/Bukan Jadwal.');
-        return false;
-    }
-
-    // CEK DATA GANDA (Strict)
-    const student = STUDENTS.find(s => s.id === studentId);
-    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
-    
-    if (alreadyPresent) {
-      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
+      alert('Hari Libur/Bukan Jadwal.');
       return false;
     }
 
+    const student = STUDENTS.find(s => s.id === studentId);
+
+    // 2. CEK STATE LOKAL (Agar cepat)
+    const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
+    if (localCheck) {
+      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${localCheck.method}!`);
+      return false;
+    }
+
+    // 3. CEK SERVER LANGSUNG (Validasi Mutlak untuk mencegah data ganda saat lag)
+    const { data: serverCheck } = await supabase
+      .from('attendance')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('date', currentDate)
+      .eq('category', 'berjamaah') // Pastikan kategori sama
+      .maybeSingle();
+
+    if (serverCheck) {
+      alert(`TOLAKAN SERVER: Siswa ${student.name} sudah tercatat di database!`);
+      return false;
+    }
+
+    // 4. JIKA LOLOS SEMUA CEK -> SIMPAN
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, 
       student_name: student.name, 
@@ -1009,12 +1028,12 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       if(viaMethod === 'Scan') alert(`Berhasil Scan: ${student.name}`);
       return true;
     } else {
-      alert('Gagal menyimpan ke database.');
+      alert('Gagal menyimpan ke database. Cek koneksi.');
       return false;
     }
   };
 
-  // --- SCANNER KAMERA ---
+  // --- SCANNER OTOMATIS ---
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1025,11 +1044,18 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           { facingMode: "environment" }, 
           config, 
           async (decodedText) => {
+            // LOGIKA DEBOUNCE (Jeda 5 detik untuk barcode yang sama)
+            const now = Date.now();
+            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 5000)) {
+               return; // Abaikan jika baru saja discan
+            }
+            lastScanRef.current = { code: decodedText, timestamp: now };
+
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              const success = await processAttendance(student.id, 'Hadir', 'Scan');
-              scanner.pause();
-              setTimeout(() => scanner.resume(), success ? 2500 : 2000);
+              scanner.pause(); // Jeda kamera saat memproses
+              await processAttendance(student.id, 'Hadir', 'Scan');
+              setTimeout(() => scanner.resume(), 2000); // Lanjut scan
             } else {
               alert("Barcode tidak dikenali!");
               scanner.pause();
@@ -1037,13 +1063,13 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
             }
           },
           (error) => { }
-        ).catch(err => console.error("Gagal akses kamera:", err));
+        ).catch(err => console.error("Gagal kamera:", err));
       });
     }
     return () => { if (scanner && scanner.isScanning) scanner.stop().catch(e => console.error(e)); };
-  }, [tab, data]);
+  }, [tab, data]); // Dependency data tetap ada
 
-  // Input Text Scan
+  // --- INPUT SCAN MANUAL (TEMBAK) ---
   const handleScanInput = async (e) => {
     e.preventDefault();
     const student = STUDENTS.find(s => s.code === scanInput);
@@ -1052,7 +1078,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     if (success) setScanInput('');
   };
 
-  // Helper render
+  // Helper
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const filteredStudents = STUDENTS.filter(s => s.class === selectedClassRecap);
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()) || s.class.toLowerCase().includes(manualSearch.toLowerCase()));
@@ -1122,7 +1148,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
-        {/* REKAP SAMA SAJA TIDAK BERUBAH */}
+        {/* BAGIAN REKAP (TIDAK BERUBAH) */}
         {(tab === 'rekap-harian' || tab === 'rekap-bulanan') && isPrivileged && (
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4 no-print">
@@ -1311,6 +1337,9 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const [manualSearch, setManualSearch] = useState("");
   const currentDate = new Date().toISOString().split('T')[0];
   const [scanInput, setScanInput] = useState('');
+  
+  // REF DEBOUNCE
+  const lastScanRef = useRef({ code: '', timestamp: 0 });
 
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-total'] : ['scan', 'manual'];
@@ -1323,25 +1352,38 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
     return true;
   };
 
-  // --- LOGIKA UTAMA (SCAN & MANUAL MENGGUNAKAN INI) ---
+  // --- LOGIKA UTAMA (VALIDASI KETAT) ---
   const processAttendance = async (studentId, status, viaMethod) => {
-    // 1. Cek Hari
+    // 1. Cek Jadwal
     if (!isRamadhanDay(currentDate)) {
       alert('Bukan Jadwal Ramadhan!');
       return false;
     }
 
-    // 2. CEK DATA GANDA (WAJIB)
-    // Karena App.js sudah menstandarkan data ke 'studentId', kita aman menggunakan field ini.
     const student = STUDENTS.find(s => s.id === studentId);
-    const alreadyPresent = data.find(d => d.date === currentDate && d.studentId === studentId);
-    
-    if (alreadyPresent) {
-      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${alreadyPresent.method}!`);
+
+    // 2. CEK LOCAL STATE
+    const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
+    if (localCheck) {
+      alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini via ${localCheck.method}!`);
       return false;
     }
 
-    // 3. Simpan ke Database
+    // 3. CEK SERVER SUPABASE (Kunci anti-ganda)
+    const { data: serverCheck } = await supabase
+      .from('attendance')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('date', currentDate)
+      .eq('category', 'ramadhan')
+      .maybeSingle();
+
+    if (serverCheck) {
+      alert(`TOLAKAN SERVER: Siswa ${student.name} sudah tercatat!`);
+      return false;
+    }
+
+    // 4. INSERT
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, 
       student_name: student.name, 
@@ -1354,9 +1396,6 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
     }]).select();
 
     if (!error) {
-      // Kita tidak perlu update state manual (setData) di sini karena App.js 
-      // sudah punya listener Realtime yang akan menangkap INSERT ini dan mengupdate state secara global.
-      // Namun untuk responsivitas instan di UI sendiri, kita bisa update.
       if (viaMethod === 'Scan') alert(`Ramadhan Berhasil: ${student.name}`);
       return true;
     } else {
@@ -1376,11 +1415,18 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
           { facingMode: "environment" }, 
           config, 
           async (decodedText) => {
+            // DEBOUNCE LOGIC
+            const now = Date.now();
+            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 5000)) {
+               return; 
+            }
+            lastScanRef.current = { code: decodedText, timestamp: now };
+
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              const success = await processAttendance(student.id, 'Hadir', 'Scan');
               scanner.pause();
-              setTimeout(() => scanner.resume(), success ? 3000 : 2000);
+              await processAttendance(student.id, 'Hadir', 'Scan');
+              setTimeout(() => scanner.resume(), 2500);
             }
           },
           (error) => { }
@@ -1388,7 +1434,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
       });
     }
     return () => { if (scanner && scanner.isScanning) scanner.stop().catch(e => console.error(e)); };
-  }, [tab, data]); // Dependency data penting agar pengecekan duplikat akurat
+  }, [tab, data]);
 
   // --- SCAN INPUT TEXT ---
   const handleScanInput = async (e) => {
@@ -1442,7 +1488,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
                         <tr key={s.id} className="border-b">
                             <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
                             <td className="p-2 flex gap-1">
-                                {/* HILANGKAN TOMBOL HADIR, TAMBAH ALFA/HAID */}
+                                {/* HANYA TAMPILKAN IZIN, SAKIT, ALFA, HAID (TANPA HADIR) */}
                                 {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
                                     <button key={status} 
                                         disabled={isRec && st !== status}
@@ -1460,7 +1506,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
-        {/* REKAP & SETTINGS SAMA SEPERTI KODE SEBELUMNYA */}
+        {/* BAGIAN REKAP (TIDAK BERUBAH) */}
         {(tab === 'rekap-harian' || tab === 'rekap-total') && isPrivileged && (
           <div>
              <div className="flex gap-2 mb-4 no-print">
