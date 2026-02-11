@@ -2178,25 +2178,48 @@ const App = () => {
     }
   }, []);
 
-  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME) - SAMA PERSIS KODE SEBELUMNYA
+  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME) - AMAN & TERPISAH
   useEffect(() => {
-    const normalizeData = (data) => data.map(d => ({ ...d, studentId: d.student_id }));
+    // --- HELPER 1: PENGOLAH DATA ABSENSI (TIDAK DIUBAH LOGIKANYA) ---
+    // Fungsi ini memastikan data absen tetap jalan lancar seperti sebelumnya
+    const normalizeAttendance = (data) => data.map(d => ({ ...d, studentId: d.student_id }));
+    
+    // --- HELPER 2: PENGOLAH DATA LCKH (DIPERBAIKI) ---
+    // Fungsi ini memperbaiki masalah data LCKH yang hilang karena beda nama variabel
+    const normalizeLckh = (data) => data.map(d => ({ 
+      ...d, 
+      userId: d.user_nip,    // KUNCI PERBAIKAN: Supabase (user_nip) -> App (userId)
+      desc: d.description    // KUNCI PERBAIKAN: Supabase (description) -> App (desc)
+    }));
+
     const fetchCloudData = async () => {
+      // BAGIAN A: AMBIL DATA ABSENSI (Aman, logika tetap sama)
       const { data: attendance } = await supabase.from('attendance').select('*');
       if (attendance) {
-        const normalized = normalizeData(attendance);
+        const normalized = normalizeAttendance(attendance);
+        // Membagi data ke pos masing-masing seperti biasa
         setAttendanceData(normalized.filter(d => d.category === 'berjamaah'));
         setRamadhanData(normalized.filter(d => d.category === 'ramadhan'));
         setLateData(normalized.filter(d => d.category === 'kesiangan'));
       }
+
+      // BAGIAN B: AMBIL DATA LCKH (Ini yang diperbaiki agar data muncul lagi)
       const { data: lckh } = await supabase.from('lckh').select('*');
-      if (lckh) setLckhData(lckh);
+      if (lckh) {
+        const normalizedLckh = normalizeLckh(lckh);
+        setLckhData(normalizedLckh);
+      }
     };
+    
+    // Jalankan pengambilan data awal
     fetchCloudData();
 
+    // --- SETUP REALTIME (LIVE UPDATE) ---
     const channel = supabase.channel('public-db-changes')
+      // LISTENER 1: KHUSUS TABEL ATTENDANCE (Absen)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, (payload) => {
           const handleUpdate = (prevList, payload) => {
+            // Logika update realtime absen tetap dipertahankan
             if (payload.eventType === 'INSERT') {
               const newData = { ...payload.new, studentId: payload.new.student_id };
               if (prevList.find(i => i.id === newData.id)) return prevList;
@@ -2210,22 +2233,35 @@ const App = () => {
             }
             return prevList;
           };
+
+          // Update state sesuai kategori (Berjamaah/Ramadhan/Kesiangan)
           if (payload.eventType === 'DELETE' || payload.new) {
-             setAttendanceData(prev => handleUpdate(prev, payload));
-             setRamadhanData(prev => handleUpdate(prev, payload));
-             setLateData(prev => handleUpdate(prev, payload));
+             setAttendanceData(prev => handleUpdate(prev, payload)); // Update Berjamaah
+             setRamadhanData(prev => handleUpdate(prev, payload));   // Update Ramadhan
+             setLateData(prev => handleUpdate(prev, payload));       // Update Kesiangan
           }
       })
+      // LISTENER 2: KHUSUS TABEL LCKH (Kinerja)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lckh' }, (payload) => {
+           // Perbaikan realtime agar sinkronisasi LCKH lancar
            if (payload.eventType === 'INSERT') {
-             setLckhData(prev => [...prev, { ...payload.new, userId: payload.new.user_nip }]);
+             setLckhData(prev => [...prev, { 
+               ...payload.new, 
+               userId: payload.new.user_nip,     // Mapping diperbaiki
+               desc: payload.new.description     // Mapping diperbaiki
+             }]);
            } else if (payload.eventType === 'DELETE') {
              setLckhData(prev => prev.filter(i => i.id !== payload.old.id));
            } else if (payload.eventType === 'UPDATE') {
-             setLckhData(prev => prev.map(i => i.id === payload.new.id ? payload.new : i));
+             setLckhData(prev => prev.map(i => i.id === payload.new.id ? {
+               ...payload.new,
+               userId: payload.new.user_nip,     // Mapping diperbaiki
+               desc: payload.new.description     // Mapping diperbaiki
+             } : i));
            }
       })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, []);
 
