@@ -870,7 +870,7 @@ table {
   border-collapse: collapse; 
   margin-top: 5px; 
   margin-bottom: 10px; 
-  font-size: 9pt; 
+  font-size: 10pt; 
 }
 
 thead th {
@@ -1168,8 +1168,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const [scanInput, setScanInput] = useState('');
   const [manualSearch, setManualSearch] = useState("");
   const [selectedClassRecap, setSelectedClassRecap] = useState('7A');
-  
-  // State untuk Range Tanggal & Cetak Massal
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [isPrintAllClasses, setIsPrintAllClasses] = useState(false);
@@ -1177,11 +1175,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const currentDate = new Date().toISOString().split('T')[0];
   const lastScanRef = useRef({ code: '', timestamp: 0 });
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
-  
-  // Tambahkan tab 'rekap-range'
-  const tabs = isPrivileged 
-    ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] 
-    : ['scan', 'manual'];
+  const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
 
   const isWorkingDay = (dateStr) => {
     const d = new Date(dateStr);
@@ -1195,7 +1189,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     if (!isWorkingDay(currentDate)) { alert('Hari Libur/Bukan Jadwal.'); return false; }
     const student = STUDENTS.find(s => s.id === studentId);
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
-    if (localCheck) { alert(`GAGAL: Siswa ${student.name} SUDAH absen hari ini!`); return false; }
+    if (localCheck) { alert(`GAGAL: Siswa ${student.name} SUDAH absen!`); return false; }
 
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
@@ -1210,7 +1204,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     }
   };
 
-  // ... (Bagian useEffect Scanner & handleScanInput SAMA PERSIS dengan sebelumnya, copy paste saja bagian itu) ...
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1240,12 +1233,9 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     const success = await processAttendance(student.id, 'Hadir', 'Scan');
     if (success) setScanInput('');
   };
-  // ... (Akhir bagian scanner) ...
 
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()) || s.class.toLowerCase().includes(manualSearch.toLowerCase()));
-
-  // LOGIKA UTAMA REKAP
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClassRecap];
 
   return (
@@ -1265,14 +1255,13 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
       </div>
 
       <div className="bg-white p-4 rounded shadow min-h-[400px]">
-        {/* --- TAB SCAN & MANUAL (SAMA SEPERTI SEBELUMNYA) --- */}
         {tab === 'scan' && (
           <div className="max-w-lg mx-auto text-center space-y-4">
              <div className="w-full h-[500px] bg-black rounded-lg overflow-hidden border-2 border-green-600">
                 <div id="reader" className="w-full h-full"></div>
              </div>
              <form onSubmit={handleScanInput} className="flex gap-2">
-               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Klik disini untuk Scan Alat Tembak..." className="flex-1 border p-2 rounded" autoFocus />
+               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Barcode Manual..." className="flex-1 border p-2 rounded" autoFocus />
                <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
              </form>
           </div>
@@ -1280,10 +1269,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
 
         {tab === 'manual' && (
           <div>
-            <div className="mb-4 relative">
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-              <input type="text" className="pl-10 w-full border p-2 rounded" placeholder="Cari Siswa..." value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} />
-            </div>
+            <div className="mb-4 relative"><Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" /><input type="text" className="pl-10 w-full border p-2 rounded" placeholder="Cari Siswa..." value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} /></div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kelas</th><th className="p-2 border">Status</th></tr></thead>
@@ -1296,10 +1282,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                         <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
                         <td className="p-2 flex gap-1">
                           {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                            <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} 
-                              className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                              {status}
-                            </button>
+                            <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>{status}</button>
                           ))}
                         </td>
                       </tr>
@@ -1311,13 +1294,10 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
-        {/* --- TAB REKAP HARIAN (SAMA, Cuma UI sedikit dirapikan) --- */}
         {tab === 'rekap-harian' && isPrivileged && (
           <div>
              <div className="flex flex-wrap items-center gap-2 mb-4 no-print">
-               <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} className="border p-2 rounded">
-                 {Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}
-               </select>
+               <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} className="border p-2 rounded">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select>
                <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded ml-auto flex items-center gap-2"><Printer size={16}/> Print</button>
              </div>
              <div className="print-area">
@@ -1328,7 +1308,14 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                 <h3 className="text-center font-bold text-lg mb-4 uppercase">Rekap Absensi Berjamaah Harian ({getFormattedDate(new Date(currentDate))})</h3>
                 <p className="text-center font-bold mb-2">Kelas: {selectedClassRecap}</p>
                 <table className="w-full border-collapse border border-black text-sm">
-                  <thead><tr className="bg-gray-200"><th className="border border-black p-2">No</th><th className="border border-black p-2">Nama</th><th className="border border-black p-2">Status</th><th className="border border-black p-2">Petugas</th></tr></thead>
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                      <th className="border border-black p-2" style={{width: '45%'}}>Nama</th>
+                      <th className="border border-black p-2" style={{width: '20%'}}>Status</th>
+                      <th className="border border-black p-2" style={{width: '30%'}}>Petugas</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {STUDENTS.filter(s => s.class === selectedClassRecap).map((s, idx) => {
                       const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
@@ -1340,32 +1327,16 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
 
-        {/* --- TAB REKAP RANGE/MINGGUAN (FITUR BARU + CETAK MASSAL) --- */}
         {tab === 'rekap-range' && isPrivileged && (
           <div>
             <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded border">
-              <div className="flex flex-col">
-                 <label className="text-xs font-bold mb-1">Mulai Tanggal:</label>
-                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/>
-              </div>
-              <div className="flex flex-col">
-                 <label className="text-xs font-bold mb-1">Sampai Tanggal:</label>
-                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/>
-              </div>
-              <div className="flex flex-col w-32">
-                 <label className="text-xs font-bold mb-1">Kelas:</label>
-                 <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">
-                    {Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}
-                 </select>
-              </div>
-              <div className="flex items-center gap-2 mt-4">
-                 <input type="checkbox" id="printAll" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/>
-                 <label htmlFor="printAll" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label>
-              </div>
+              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+              <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
+              <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAll" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAll" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
               <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
             </div>
             
-            {/* AREA CETAK LOOPING KELAS */}
             <div className="print-area">
                {classesToPrint.map((className) => {
                  const classStudents = STUDENTS.filter(s => s.class === className);
@@ -1383,25 +1354,19 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                       <table className="w-full border-collapse border border-black text-sm">
                         <thead>
                           <tr className="bg-gray-200">
-                            <th className="border border-black p-2 w-10">No</th>
-                            <th className="border border-black p-2">Nama Siswa</th>
-                            <th className="border border-black p-2 w-10">H</th>
-                            <th className="border border-black p-2 w-10">S</th>
-                            <th className="border border-black p-2 w-10">I</th>
-                            <th className="border border-black p-2 w-10">A</th>
-                            <th className="border border-black p-2 w-10">Haid</th>
+                            <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                            <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
+                            <th className="border border-black p-2" style={{width: '11%'}}>Hadir</th>
+                            <th className="border border-black p-2" style={{width: '11%'}}>Sakit</th>
+                            <th className="border border-black p-2" style={{width: '11%'}}>Izin</th>
+                            <th className="border border-black p-2" style={{width: '11%'}}>Alfa</th>
+                            <th className="border border-black p-2" style={{width: '11%'}}>Haid</th>
                           </tr>
                         </thead>
                         <tbody>
                           {classStudents.map((s, idx) => {
                              const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0, Haid: 0 };
-                             // Filter data berdasarkan Range Tanggal & ID Siswa
-                             data.filter(d => 
-                               d.studentId === s.id && 
-                               d.date >= startDate && 
-                               d.date <= endDate
-                             ).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
-                             
+                             data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
                              return (
                                <tr key={s.id}>
                                  <td className="border border-black p-1 text-center">{idx+1}</td>
@@ -1433,15 +1398,8 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
           </div>
         )}
         
-        {/* --- SETTINGS --- */}
         {tab === 'settings' && isPrivileged && (
-          <div><h3 className="font-bold mb-4">Pengaturan Hari Libur</h3>
-             <div className="flex gap-2 mb-4">
-               <input type="date" id="holidayInput" className="border p-2 rounded" />
-               <button onClick={() => { const val = document.getElementById('holidayInput').value; if(val) setHolidays([...holidays, val]); }} className="bg-red-600 text-white px-4 py-2 rounded">Tambah</button>
-             </div>
-             <ul className="list-disc pl-5">{holidays.map(h => <li key={h} className="text-red-600">{getFormattedDate(new Date(h))} <button onClick={() => setHolidays(holidays.filter(x => x !== h))} className="ml-2 text-gray-400 text-xs">(Hapus)</button></li>)}</ul>
-          </div>
+          <div><h3 className="font-bold mb-4">Pengaturan Hari Libur</h3><div className="flex gap-2 mb-4"><input type="date" id="holidayInput" className="border p-2 rounded" /><button onClick={() => { const val = document.getElementById('holidayInput').value; if(val) setHolidays([...holidays, val]); }} className="bg-red-600 text-white px-4 py-2 rounded">Tambah</button></div><ul className="list-disc pl-5">{holidays.map(h => <li key={h} className="text-red-600">{getFormattedDate(new Date(h))} <button onClick={() => setHolidays(holidays.filter(x => x !== h))} className="ml-2 text-gray-400 text-xs">(Hapus)</button></li>)}</ul></div>
         )}
       </div>
     </div>
@@ -1556,8 +1514,6 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
   const [scanInput, setScanInput] = useState('');
-  
-  // State Range & Cetak Massal
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [isPrintAllClasses, setIsPrintAllClasses] = useState(false);
@@ -1565,9 +1521,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const currentDate = new Date().toISOString().split('T')[0];
   const lastScanRef = useRef({ code: '', timestamp: 0 });
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
-  const tabs = isPrivileged 
-    ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] 
-    : ['scan', 'manual'];
+  const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
 
   const isRamadhanDay = (dateStr) => {
     const d = new Date(dateStr);
@@ -1628,8 +1582,6 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
 
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()));
-
-  // LOGIKA UTAMA REKAP
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClass];
 
   return (
@@ -1669,10 +1621,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
                             <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
                             <td className="p-2 flex gap-1">
                                 {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                                    <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} 
-                                        className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>
-                                        {status}
-                                    </button>
+                                    <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>{status}</button>
                                 ))}
                             </td>
                         </tr>
@@ -1696,11 +1645,26 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
                  </div>
                  <h3 className="text-center font-bold mb-4 uppercase">Rekap Absensi Ramadhan ({getFormattedDate(new Date(currentDate))}) - Kelas {selectedClass}</h3>
                  <table className="w-full border-collapse border border-black text-sm">
-                   <thead><tr className="bg-gray-200"><th className="border border-black p-2">No</th><th className="border border-black p-2">Nama</th><th className="border border-black p-2">Status</th></tr></thead>
+                   <thead>
+                     <tr className="bg-gray-200">
+                       <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                       <th className="border border-black p-2" style={{width: '45%'}}>Nama</th>
+                       <th className="border border-black p-2" style={{width: '20%'}}>Status</th>
+                       <th className="border border-black p-2" style={{width: '30%'}}>Petugas</th> {/* UPDATE: Tambah Petugas */}
+                     </tr>
+                   </thead>
                    <tbody>
-                     {STUDENTS.filter(s => s.class === selectedClass).map((s, i) => (
-                        <tr key={s.id}><td className="border border-black p-1 text-center">{i+1}</td><td className="border border-black p-1">{s.name}</td><td className="border border-black p-1 text-center">{getStatus(s.id, currentDate)}</td></tr>
-                     ))}
+                     {STUDENTS.filter(s => s.class === selectedClass).map((s, i) => {
+                        const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
+                        return (
+                          <tr key={s.id}>
+                            <td className="border border-black p-1 text-center">{i+1}</td>
+                            <td className="border border-black p-1">{s.name}</td>
+                            <td className="border border-black p-1 text-center">{getStatus(s.id, currentDate)}</td>
+                            <td className="border border-black p-1 text-center">{rec?.officer || '-'}</td> {/* UPDATE: Isi Petugas */}
+                          </tr>
+                        )
+                     })}
                    </tbody>
                  </table>
               </div>
@@ -1733,7 +1697,16 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
                       <p className="font-bold mb-2">Kelas: {className}</p>
 
                       <table className="w-full border-collapse border border-black text-sm">
-                        <thead><tr className="bg-gray-200"><th className="border border-black p-2 w-10">No</th><th className="border border-black p-2">Nama Siswa</th><th className="border border-black p-2 w-10">H</th><th className="border border-black p-2 w-10">S</th><th className="border border-black p-2 w-10">I</th><th className="border border-black p-2 w-10">A</th></tr></thead>
+                        <thead>
+                          <tr className="bg-gray-200">
+                            <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                            <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th> {/* UPDATE: Lebar proporsional */}
+                            <th className="border border-black p-2" style={{width: '13%'}}>Hadir</th>
+                            <th className="border border-black p-2" style={{width: '13%'}}>Sakit</th>
+                            <th className="border border-black p-2" style={{width: '13%'}}>Izin</th>
+                            <th className="border border-black p-2" style={{width: '16%'}}>Alfa</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {classStudents.map((s, idx) => {
                              const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
@@ -1910,6 +1883,8 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
   };
 
   const userRank = GOLONGAN_MAP[profile.golongan] || {};
+  
+  // Filter data berdasarkan User Login DAN Bulan/Tahun yang dipilih (baik untuk Input maupun Cetak)
   const filteredData = data.filter(d => d.userId === user.nip && new Date(d.date).getMonth() === printMonth && new Date(d.date).getFullYear() === printYear);
   const sortedData = [...filteredData].sort((a, b) => new Date(a.date) - new Date(b.date)); 
 
@@ -1965,35 +1940,73 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
             </div>
           </div>
           
-          {/* Tabel Input Preview */}
+          {/* Tabel Input Preview - UPDATE: Ada Filter Bulan & Tahun */}
           <div className="bg-white p-4 rounded shadow">
-  <table className="w-full text-sm border-collapse">
-    <thead>
-      <tr className="bg-green-50 text-left">
-        <th className="p-3 border-b">Tgl</th>
-        <th className="p-3 border-b">Kegiatan</th>
-        <th className="p-3 border-b">Uraian</th> {/* Kolom Baru */}
-        <th className="p-3 border-b">Vol</th>
-        <th className="p-3 border-b">Aksi</th>
-      </tr>
-    </thead>
-    <tbody>
-      {sortedData.length === 0 ? (
-        <tr><td colSpan="5" className="p-4 text-center">Belum ada data.</td></tr>
-      ) : sortedData.map(i => (
-        <tr key={i.id} className="border-b hover:bg-gray-50">
-          <td className="p-3 whitespace-nowrap">{getShortDate(i.date)}</td>
-          <td className="p-3">{i.activity}</td>
-          <td className="p-3 text-gray-600 italic">{i.desc}</td> {/* Data Baru */}
-          <td className="p-3 whitespace-nowrap">{i.volume} {i.unit}</td>
-          <td className="p-3 flex gap-3">
-            <button onClick={() => handleEdit(i)} className="text-blue-600"><Edit size={14}/></button>
-            <button onClick={() => handleDelete(i.id)} className="text-red-600"><Trash2 size={14}/></button>
-          </td>
-        </tr>
+             <div className="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-2 gap-2">
+                <h3 className="font-bold text-gray-700">Riwayat Input</h3>
+                
+                {/* FITUR BARU: Filter Bulan & Tahun di Riwayat */}
+                <div className="flex gap-2 items-center">
+                   <span className="text-sm text-gray-500">Filter:</span>
+                   <select 
+                      value={printMonth} 
+                      onChange={e => setPrintMonth(parseInt(e.target.value))} 
+                      className="border p-1 rounded text-sm bg-gray-50 focus:ring-2 focus:ring-green-500"
+                   >
+                      {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                   </select>
+                   <select 
+                      value={printYear} 
+                      onChange={e => setPrintYear(parseInt(e.target.value))} 
+                      className="border p-1 rounded text-sm bg-gray-50 focus:ring-2 focus:ring-green-500"
+                   >
+                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                   </select>
+                </div>
+             </div>
+
+             <table className="w-full text-sm border-collapse">
+               <thead>
+                 <tr className="bg-green-50 text-left">
+                   <th className="p-3 border-b">Tgl</th>
+                   <th className="p-3 border-b">Kegiatan</th>
+                   <th className="p-3 border-b">Uraian</th>
+                   <th className="p-3 border-b">Vol</th>
+                   <th className="p-3 border-b">Aksi</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {sortedData.length === 0 ? (
+                   <tr>
+                     <td colSpan="5" className="p-8 text-center text-gray-500 italic">
+                        Tidak ada data di bulan {MONTHS[printMonth]} {printYear}.
+                     </td>
+                   </tr>
+                 ) : sortedData.map(i => (
+                   <tr key={i.id} className="border-b hover:bg-gray-50 transition-colors">
+                     <td className="p-3 whitespace-nowrap">{getShortDate(i.date)}</td>
+                     <td className="p-3 font-medium">{i.activity}</td>
+                     <td className="p-3 text-gray-600 italic text-xs">{i.desc}</td>
+                     <td className="p-3 whitespace-nowrap">{i.volume} {i.unit}</td>
+                     <td className="p-3 flex gap-3">
+                       <button onClick={() => handleEdit(i)} className="text-blue-600 hover:text-blue-800" title="Edit">
+                         <Edit size={16}/>
+                       </button>
+                       <button onClick={() => handleDelete(i.id)} className="text-red-600 hover:text-red-800" title="Hapus">
+                         <Trash2 size={16}/>
+                       </button>
+                     </td>
+                   </tr>
                  ))}
                </tbody>
              </table>
+             
+             {/* Info Total Data */}
+             {sortedData.length > 0 && (
+                <div className="mt-2 text-xs text-gray-400 text-right">
+                   Total: {sortedData.length} kegiatan
+                </div>
+             )}
           </div>
         </div>
       )}
