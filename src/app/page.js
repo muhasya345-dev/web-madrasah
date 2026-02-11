@@ -938,7 +938,7 @@ tbody td {
 @media print {
   @page { 
     size: A4; 
-    margin: 0 !important; /* Reset margin printer */
+    margin: 15mm !important; /* Reset margin printer */
   }
   
   /* 1. Sembunyikan elemen UI yang mengganggu */
@@ -1808,7 +1808,7 @@ const CoverPage = ({ user, month, year }) => {
         {/* Identitas Guru - Padding dikurangi */}
         <div className="space-y-1 mt-8">
           <p className="text-sm text-gray-500 mb-1">Disusun Oleh:</p>
-          <h3 className="text-2xl font-bold text-black uppercase">{user.name}</h3>
+          <h3 className="text-2xl font-bold text-black sentence case">{user.name}</h3>
           <p className="text-lg text-gray-700 font-semibold tracking-wide">NIP. {user.nip}</p>
         </div>
 
@@ -1884,10 +1884,11 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
 
   const userRank = GOLONGAN_MAP[profile.golongan] || {};
   
-  // Filter data berdasarkan User Login DAN Bulan/Tahun yang dipilih (baik untuk Input maupun Cetak)
+  // Filter & Sort Data
   const filteredData = data.filter(d => d.userId === user.nip && new Date(d.date).getMonth() === printMonth && new Date(d.date).getFullYear() === printYear);
   const sortedData = [...filteredData].sort((a, b) => new Date(a.date) - new Date(b.date)); 
 
+  // Group Data LKB
   const lkbData = Object.values(sortedData.reduce((acc, curr) => {
     if (!acc[curr.activity]) acc[curr.activity] = { ...curr, volume: 0, doc: getDocName(curr.activity, user.nip) };
     acc[curr.activity].volume += parseInt(curr.volume);
@@ -1940,26 +1941,16 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
             </div>
           </div>
           
-          {/* Tabel Input Preview - UPDATE: Ada Filter Bulan & Tahun */}
+          {/* Tabel Input Preview */}
           <div className="bg-white p-4 rounded shadow">
              <div className="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-2 gap-2">
                 <h3 className="font-bold text-gray-700">Riwayat Input</h3>
-                
-                {/* FITUR BARU: Filter Bulan & Tahun di Riwayat */}
                 <div className="flex gap-2 items-center">
                    <span className="text-sm text-gray-500">Filter:</span>
-                   <select 
-                      value={printMonth} 
-                      onChange={e => setPrintMonth(parseInt(e.target.value))} 
-                      className="border p-1 rounded text-sm bg-gray-50 focus:ring-2 focus:ring-green-500"
-                   >
+                   <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-1 rounded text-sm bg-gray-50">
                       {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
                    </select>
-                   <select 
-                      value={printYear} 
-                      onChange={e => setPrintYear(parseInt(e.target.value))} 
-                      className="border p-1 rounded text-sm bg-gray-50 focus:ring-2 focus:ring-green-500"
-                   >
+                   <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-1 rounded text-sm bg-gray-50">
                       {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                    </select>
                 </div>
@@ -1979,7 +1970,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                  {sortedData.length === 0 ? (
                    <tr>
                      <td colSpan="5" className="p-8 text-center text-gray-500 italic">
-                        Tidak ada data di bulan {MONTHS[printMonth]} {printYear}.
+                       Tidak ada data di bulan {MONTHS[printMonth]} {printYear}.
                      </td>
                    </tr>
                  ) : sortedData.map(i => (
@@ -1989,32 +1980,19 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                      <td className="p-3 text-gray-600 italic text-xs">{i.desc}</td>
                      <td className="p-3 whitespace-nowrap">{i.volume} {i.unit}</td>
                      <td className="p-3 flex gap-3">
-                       <button onClick={() => handleEdit(i)} className="text-blue-600 hover:text-blue-800" title="Edit">
-                         <Edit size={16}/>
-                       </button>
-                       <button onClick={() => handleDelete(i.id)} className="text-red-600 hover:text-red-800" title="Hapus">
-                         <Trash2 size={16}/>
-                       </button>
+                       <button onClick={() => handleEdit(i)} className="text-blue-600 hover:text-blue-800" title="Edit"><Edit size={16}/></button>
+                       <button onClick={() => handleDelete(i.id)} className="text-red-600 hover:text-red-800" title="Hapus"><Trash2 size={16}/></button>
                      </td>
                    </tr>
                  ))}
                </tbody>
              </table>
-             
-             {/* Info Total Data */}
-             {sortedData.length > 0 && (
-                <div className="mt-2 text-xs text-gray-400 text-right">
-                   Total: {sortedData.length} kegiatan
-                </div>
-             )}
           </div>
         </div>
       )}
 
-      {/* --- MODE CETAK (PREVIEW & PDF SAMA PERSIS) --- */}
       {mode === 'print-view' && (
         <div className="w-full">
-           {/* Kontrol Navigasi (Hanya muncul di Layar, di dalam container utama) */}
            <div className="no-print p-4 bg-white shadow mb-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border">
              <div className="flex gap-4 items-center">
                <label className="font-bold text-gray-700">Periode:</label>
@@ -2028,9 +2006,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
              </div>
            </div>
            
-           {/* Area Kertas (Preview Wrapper) */}
            <div className="preview-wrapper">
-             
              {/* HALAMAN 1: COVER */}
              <div className="sheet">
                <CoverPage user={user} month={printMonth} year={printYear} />
@@ -2039,7 +2015,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
              {/* HALAMAN 2: LKB */}
              <div className="sheet">
                  <ReportHeader title="LAPORAN KINERJA BULANAN" user={user} rank={userRank} month={printMonth} year={printYear} />
-                 
                  <table>
                    <thead>
                      <tr>
@@ -2066,50 +2041,77 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                      )}
                    </tbody>
                  </table>
-
                  <div className="signature-section">
                     <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
                  </div>
              </div>
 
-             {/* HALAMAN 3: LCKH */}
-             <div className="sheet last-page">
-                 <ReportHeader title="LAPORAN CAPAIAN KINERJA HARIAN (LCKH)" user={user} rank={userRank} month={printMonth} year={printYear} />
-                 
-                 <table>
-                   <thead>
-                     <tr>
-                       <th style={{width: '5%'}}>No</th>
-                       <th style={{width: '12%'}}>Tanggal</th>
-                       <th style={{width: '25%'}}>Kegiatan</th>
-                       <th style={{width: '38%'}}>Uraian Kegiatan</th>
-                       <th style={{width: '10%'}}>Vol</th>
-                       <th style={{width: '10%'}}>Satuan</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {sortedData.length === 0 ? (
-                       <tr><td colSpan="6" className="text-center py-8 italic">Belum ada kegiatan harian di bulan ini.</td></tr>
-                     ) : (
-                       sortedData.map((item, idx) => (
-                         <tr key={item.id}>
-                           <td className="text-center">{idx + 1}</td>
-                           <td className="text-center whitespace-nowrap">{getShortDate(item.date)}</td>
-                           <td className="text-left">{item.activity}</td>
-                           <td className="text-left">{item.desc}</td>
-                           <td className="text-center">{item.volume}</td>
-                           <td className="text-center">{item.unit}</td>
-                         </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
+             {/* HALAMAN 3 dst: LCKH DENGAN PAGINATION */}
+             {(() => {
+                const ROWS_PER_PAGE = 18;
+                const chunks = [];
+                if (sortedData.length === 0) {
+                   chunks.push([]);
+                } else {
+                   for (let i = 0; i < sortedData.length; i += ROWS_PER_PAGE) {
+                      chunks.push(sortedData.slice(i, i + ROWS_PER_PAGE));
+                   }
+                }
+                return chunks.map((chunk, pageIndex) => (
+                   <div key={pageIndex} className="sheet">
+                      
+                      {/* PERBAIKAN: Header & Identitas HANYA MUNCUL DI HALAMAN PERTAMA (pageIndex === 0) */}
+                      {pageIndex === 0 && (
+                        <ReportHeader 
+                          title="LAPORAN CAPAIAN KINERJA HARIAN (LCKH)" 
+                          user={user} 
+                          rank={userRank} 
+                          month={printMonth} 
+                          year={printYear} 
+                        />
+                      )}
+                      
+                      {/* Indikator halaman */}
+                      {chunks.length > 1 && (<p className="text-right text-xs italic mb-1">Halaman {pageIndex + 1} dari {chunks.length}</p>)}
+                      
+                      <table>
+                        <thead>
+                          <tr>
+                            <th style={{width: '5%'}}>No</th>
+                            <th style={{width: '12%'}}>Tanggal</th>
+                            <th style={{width: '25%'}}>Kegiatan</th>
+                            <th style={{width: '38%'}}>Uraian Kegiatan</th>
+                            <th style={{width: '10%'}}>Vol</th>
+                            <th style={{width: '10%'}}>Satuan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chunk.length === 0 ? (
+                            <tr><td colSpan="6" className="text-center py-8 italic">Belum ada kegiatan harian.</td></tr>
+                          ) : (
+                            chunk.map((item, idx) => (
+                              <tr key={item.id}>
+                                <td className="text-center">{(pageIndex * ROWS_PER_PAGE) + idx + 1}</td>
+                                <td className="text-center whitespace-nowrap">{getShortDate(item.date)}</td>
+                                <td className="text-left">{item.activity}</td>
+                                <td className="text-left">{item.desc}</td>
+                                <td className="text-center">{item.volume}</td>
+                                <td className="text-center">{item.unit}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
 
-                 <div className="signature-section">
-                    <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
-                 </div>
-             </div>
-
+                      {/* Tanda Tangan HANYA di halaman terakhir */}
+                      {pageIndex === chunks.length - 1 && (
+                        <div className="signature-section">
+                           <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
+                        </div>
+                      )}
+                   </div>
+                ));
+             })()}
            </div>
         </div>
       )}
