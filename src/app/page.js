@@ -1057,7 +1057,7 @@ const LoginScreen = ({ onLogin }) => {
               <div className="mb-6 w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 mx-auto">
                 <QrCode size={40} className="text-yellow-300" />
               </div>
-              <h2 className="text-3xl font-bold mb-2">Digitalisasi<br/>Madrasah</h2>
+              <h2 className="text-3xl font-bold mb-2">MTs Negeri 3<br/>Kota Tasikmalaya</h2>
               <p className="text-green-100 text-sm leading-relaxed max-w-xs mx-auto">
                 Mewujudkan madrasah yang maju, bermutu, dan mendunia melalui teknologi terintegrasi.
               </p>
