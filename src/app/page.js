@@ -45,59 +45,6 @@ const ToastNotification = ({ toasts, removeToast }) => {
 
 // --- DATA MOCK ---
 
-const STAFF_ACCOUNTS = [
-  { name: 'Aldo', nisn: '1212', pass: '123', role: 'staff' },
-  { name: 'Luthfiyana', nisn: '1313', pass: '123', role: 'staff' }
-];
-
-const TEACHERS_DATA = [
-  { name: 'Hj. YIYIN, S.Ag.,M.Pd.', nip: '197210181993032002', role: 'admin' },
-  { name: 'LILIS NURMILAH, S.Pd.I.', nip: '196610022025212001', role: 'teacher' },
-  { name: 'H. AONUL HUSNI, S.Ag.', nip: '196703101988031002', role: 'teacher' },
-  { name: 'Dra. Hj. SITI HANAH, S.Pd.I', nip: '196706121994032003', role: 'teacher' },
-  { name: 'AMIR MUSLIM, S.Ag', nip: '196903072007011039', role: 'teacher' },
-  { name: 'YANTI MARYANTI, S.Pd.', nip: '197107112005012002', role: 'teacher' },
-  { name: 'ELIS EVI SUNDANIS, S.Pd', nip: '197107212006042008', role: 'teacher' },
-  { name: 'IKAH MUDRIKAH SRI LUCIANA, S.Ag', nip: '197110201993032001', role: 'teacher' },
-  { name: 'INTAN SITI NURHAYATI, S.Pd.', nip: '197206301998022001', role: 'teacher' },
-  { name: 'LILIS MARYANI, S.Ag', nip: '197210202022212005', role: 'teacher' },
-  { name: 'DADAN MUNANDAR', nip: '197307202025211008', role: 'teacher' },
-  { name: 'YATI NURHAYATI, S.Pd.I', nip: '197310022025212002', role: 'teacher' },
-  { name: 'ASEP RAHMAT, S.Pd', nip: '197501012005011006', role: 'teacher' },
-  { name: 'ESA SUSANTI, S.Pd.', nip: '197502142005012004', role: 'teacher' },
-  { name: 'ALIEN KURNIANINGSIH, S.Pd.', nip: '197605232005012001', role: 'teacher' },
-  { name: 'ALIA HERNIS, S.Ag', nip: '197608112022212010', role: 'teacher' },
-  { name: 'NENENG SOLIHAH, S.Sos', nip: '197701282007102002', role: 'teacher' },
-  { name: 'ASEP SYAMSUL BASYAR, S.Pd.I', nip: '197703282025211001', role: 'teacher' },
-  { name: 'MIA ROSTIKANIAWATI, S.Sos.I', nip: '197903062023212010', role: 'teacher' },
-  { name: 'ARIS AWALUDIN, S.Pd., M.PMat.', nip: '198002262005011004', role: 'teacher' },
-  { name: 'ROSSI RAHMAYANI, M.Pd', nip: '198101292005012006', role: 'teacher' },
-  { name: 'YADI APRIADI, S.Pd.', nip: '198105022007101001', role: 'teacher' },
-  { name: 'IKA MUSTIKA RASTUTI, S.Pd', nip: '198105142005012006', role: 'teacher' },
-  { name: 'TETIH SITI ATHIYYAH, S.Pd.', nip: '198107102007102001', role: 'teacher' },
-  { name: 'ELIS LIDIANINGSIH, S.Pd.', nip: '198110182025212002', role: 'teacher' },
-  { name: 'ENCEP SUSANTO, S.Pd', nip: '198506122025211005', role: 'teacher' },
-  { name: 'RATNASARI, S.Pd.', nip: '198603132023212037', role: 'teacher' },
-  { name: 'RINA NURAENI, S.Pd', nip: '198609192024212023', role: 'teacher' },
-  { name: 'RITA ANTARIKSA, S.Pd', nip: '198611052023212048', role: 'teacher' },
-  { name: 'RENDRA PURA SETIA R., S.Pd', nip: '199004182025051002', role: 'teacher' },
-  { name: 'PIA POPIYANA, S,Pd', nip: '199006172023212034', role: 'teacher' },
-  { name: 'RISNA FIRMAWATI, S.Pd', nip: '199008092025052002', role: 'teacher' },
-  { name: 'SENDI MAULANA, S.Pd.', nip: '199009302023211019', role: 'teacher' },
-  { name: 'ADE SUTISNA SENJAYA, S.Kom', nip: '199107072019031019', role: 'teacher' },
-  { name: 'ELIS NURKAMILA, S. Pd.', nip: '199110262025052002', role: 'teacher' },
-  { name: 'AYU SHINTA WATI, S.Pd', nip: '199310062025052002', role: 'teacher' },
-  { name: 'MIMBAR RUSTAMIN, S.Pd.', nip: '199404272025051004', role: 'teacher' },
-  { name: 'MUHAMMAD RIJAL MUHAROM, S.Pd', nip: '199406222025051003', role: 'teacher' },
-  { name: 'FAJAR NUGRAHA, S.Pd.', nip: '199503252025211005', role: 'teacher' },
-  { name: 'YUNIA NURAZIZAH, S. Pd', nip: '199506112025052002', role: 'teacher' },
-  { name: 'RATU KHUMAIROH AINI, S.Pd', nip: '199606142023212035', role: 'teacher' },
-  { name: 'LELY LAILATUSSAIDAH, S.Pd', nip: '199712212023212013', role: 'teacher' },
-  { name: 'FAJAR ABDUL MALIK AL MANSUR, S.Pd.', nip: '199810272025051006', role: 'teacher' },
-  { name: 'MUHAMMAD SYA\'BAN NURUL FUAD, S.Pd.', nip: '199911222025051007', role: 'teacher' },
-  { name: 'DESITI KHOIRIYAH, S.Pd', nip: '200012192025052014', role: 'teacher' }
-];
-
 const WALI_KELAS_MAP = {
   '7A': { name: 'INTAN SITI NURHAYATI, S.Pd.', nip: '197206301998022001' },
   '7B': { name: 'Dra. Hj. SITI HANAH, S.Pd.I', nip: '196706121994032003' },
@@ -1115,9 +1062,10 @@ const LoginScreen = ({ onLogin }) => {
   );
 };
 
-// 2. SIDEBAR (Sedikit penyesuaian visual)
 const SidebarContent = ({ user, currentView, setView, logout }) => {
-  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  // Cek Permission berdasarkan role user saat ini
+  const permissions = ROLE_PERMISSIONS[user?.role] || [];
+
   const menuClass = (id) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${currentView === id ? 'bg-green-700 shadow-md font-medium translate-x-1' : 'hover:bg-green-800/50 text-green-100'}`;
 
   return (
@@ -1142,14 +1090,28 @@ const SidebarContent = ({ user, currentView, setView, logout }) => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-        <button onClick={() => setView('dashboard')} className={menuClass('dashboard')}><Menu size={18} /> Dashboard</button>
-        <button onClick={() => setView('absen-berjamaah')} className={menuClass('absen-berjamaah')}><QrCode size={18} /> Absen Berjamaah</button>
-        {isTeacher && (
-          <>
-            <button onClick={() => setView('absen-kesiangan')} className={menuClass('absen-kesiangan')}><AlertTriangle size={18} /> Absen Kesiangan</button>
-            <button onClick={() => setView('absen-ramadhan')} className={menuClass('absen-ramadhan')}><Moon size={18} /> Absen Ramadhan</button>
-            <button onClick={() => setView('lckh')} className={menuClass('lckh')}><ClipboardList size={18} /> LCKH & LKB</button>
-          </>
+        {permissions.includes('dashboard') && (
+          <button onClick={() => setView('dashboard')} className={menuClass('dashboard')}><Menu size={18} /> Dashboard</button>
+        )}
+        
+        {permissions.includes('absen-berjamaah') && (
+          <button onClick={() => setView('absen-berjamaah')} className={menuClass('absen-berjamaah')}><QrCode size={18} /> Absen Berjamaah</button>
+        )}
+        
+        {permissions.includes('absen-kesiangan') && (
+          <button onClick={() => setView('absen-kesiangan')} className={menuClass('absen-kesiangan')}><AlertTriangle size={18} /> Absen Kesiangan</button>
+        )}
+        
+        {permissions.includes('absen-ramadhan') && (
+          <button onClick={() => setView('absen-ramadhan')} className={menuClass('absen-ramadhan')}><Moon size={18} /> Absen Ramadhan</button>
+        )}
+        
+        {permissions.includes('lckh') && (
+          <button onClick={() => setView('lckh')} className={menuClass('lckh')}><ClipboardList size={18} /> LCKH & LKB</button>
+        )}
+
+        {permissions.includes('user-management') && (
+          <button onClick={() => setView('user-management')} className={menuClass('user-management')}><User size={18} /> Manajemen User</button>
         )}
       </nav>
 
@@ -2410,17 +2372,192 @@ const SignatureSection = ({ user, rank, month, year }) => {
   );
 };
 
-// --- APP COMPONENT (DEFINED LAST) ---
+const UserManagement = ({ users, setUsers, addToast }) => {
+  // Default role adalah 'teacher'
+  const [formData, setFormData] = useState({ name: '', nip: '', role: 'teacher', password: '' });
+  const [isEditing, setIsEditing] = useState(null);
 
-// --- APP COMPONENT (YANG SUDAH DIPERBAIKI AGAR SINKRON REAL-TIME) ---
+  // Helper untuk menentukan label ID berdasarkan Role
+  const getIdLabel = (role) => {
+      return role === 'staff' ? 'NISN (Nomor Induk Siswa)' : 'NIP / Username';
+  };
 
-// --- APP COMPONENT (SINKRONISASI REAL-TIME & DATA HANDLING) ---
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const idLabel = getIdLabel(formData.role);
+
+    if (isEditing) {
+      setUsers(users.map(u => u.id === isEditing ? { ...u, ...formData, id: u.id } : u));
+      addToast('success', 'Berhasil', 'Data pengguna diperbarui.');
+      setIsEditing(null);
+    } else {
+      // Cek apakah NIP/NISN sudah ada
+      if (users.find(u => u.nip === formData.nip)) {
+        addToast('error', 'Gagal', `${idLabel} sudah terdaftar.`);
+        return;
+      }
+      setUsers([...users, { ...formData, id: Date.now() }]);
+      addToast('success', 'Berhasil', 'Pengguna baru ditambahkan.');
+    }
+    // Reset form ke default
+    setFormData({ name: '', nip: '', role: 'teacher', password: '' });
+  };
+
+  const handleEdit = (user) => {
+    setFormData({ name: user.name, nip: user.nip, role: user.role, password: user.password });
+    setIsEditing(user.id);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Hapus pengguna ini?')) {
+      setUsers(users.filter(u => u.id !== id));
+      addToast('info', 'Dihapus', 'Pengguna telah dihapus.');
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="font-bold text-lg mb-4 text-gray-800 flex items-center gap-2">
+          <User size={20} className="text-blue-600"/> {isEditing ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}
+        </h3>
+        
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pilihan Role dipindah ke atas agar user memilih dulu */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipe Pengguna</label>
+            <select 
+                className="w-full border p-2 rounded bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none" 
+                value={formData.role} 
+                onChange={e => setFormData({...formData, role: e.target.value})}
+            >
+                <option value="admin">Admin (Operator)</option>
+                <option value="headmaster">Kepala Madrasah</option>
+                <option value="teacher">Guru</option>
+                <option value="staff">Petugas Piket (Siswa)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Lengkap</label>
+            <input 
+                type="text" placeholder="Contoh: Aldo" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
+                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} 
+            />
+          </div>
+
+          <div>
+            {/* Label Dinamis: Berubah sesuai Role yang dipilih di atas */}
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                {getIdLabel(formData.role)}
+            </label>
+            <input 
+                type="text" 
+                placeholder={formData.role === 'staff' ? "Masukkan NISN..." : "Masukkan NIP..."} 
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
+                value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} 
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password Login</label>
+            <input 
+                type="text" placeholder="Password" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
+                value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} 
+            />
+          </div>
+
+          <div className="md:col-span-2 flex gap-2 pt-2">
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full shadow-md font-bold">
+                {isEditing ? 'Simpan Perubahan' : 'Tambah User'}
+            </button>
+            {isEditing && (
+              <button type="button" onClick={() => { setIsEditing(null); setFormData({ name: '', nip: '', role: 'teacher', password: '' }); }} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Batal</button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* Tabel Daftar User */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="font-bold text-lg mb-4 text-gray-800">Daftar Akun Pengguna</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-gray-50 font-bold text-gray-700 border-b">
+              <tr>
+                <th className="p-3">Nama</th>
+                <th className="p-3">Nomor Induk</th>
+                <th className="p-3">Role / Jabatan</th>
+                <th className="p-3">Password</th>
+                <th className="p-3">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-gray-50">
+                  <td className="p-3 font-medium">{u.name}</td>
+                  <td className="p-3 font-mono text-gray-600">
+                    {u.nip} 
+                    {u.role === 'staff' && <span className="text-[10px] text-gray-400 ml-1">(NISN)</span>}
+                  </td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${
+                        u.role === 'admin' ? 'bg-red-100 text-red-600' : 
+                        u.role === 'headmaster' ? 'bg-purple-100 text-purple-600' : 
+                        u.role === 'staff' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
+                    }`}>
+                        {u.role === 'staff' ? 'Petugas (Siswa)' : u.role}
+                    </span>
+                  </td>
+                  <td className="p-3 font-mono text-gray-400">••••••</td>
+                  <td className="p-3 flex gap-2">
+                    <button onClick={() => handleEdit(u)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"><Edit size={16}/></button>
+                    {u.role !== 'admin' && ( 
+                      <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"><Trash2 size={16}/></button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- KONFIGURASI HAK AKSES (RBAC) ---
+const ROLE_PERMISSIONS = {
+  admin: ['dashboard', 'absen-berjamaah', 'absen-kesiangan', 'absen-ramadhan', 'lckh', 'user-management'],
+  headmaster: ['dashboard', 'absen-berjamaah', 'absen-kesiangan', 'absen-ramadhan', 'lckh'], 
+  teacher: ['dashboard', 'absen-berjamaah', 'absen-kesiangan', 'absen-ramadhan', 'lckh'],
+  staff: ['dashboard', 'absen-berjamaah'], 
+};
+
+// Data Awal (Fallback jika local storage kosong)
+const INITIAL_USERS = [
+  // ADMIN (Anda)
+  { id: 1, name: 'MUHAMMAD SYA\'BAN NURUL FUAD, S.Pd.', nip: '199911222025051007', role: 'admin', password: '123' },
+  
+  // KEPALA MADRASAH
+  { id: 2, name: 'Hj. YIYIN, S.Ag.,M.Pd.', nip: '197210181993032002', role: 'headmaster', password: '123' },
+  
+  // CONTOH GURU LAIN
+  { id: 5, name: 'LILIS NURMILAH, S.Pd.I.', nip: '196610022025212001', role: 'teacher', password: '123' },
+
+  // PETUGAS (Siswa) - Gunakan NISN di kolom 'nip'
+  { id: 3, name: 'Aldo', nip: '1212', role: 'staff', password: '123' }, 
+  { id: 4, name: 'Luthfiyana', nip: '1313', role: 'staff', password: '123' },
+];
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // State Manajemen User (Dinamis)
+  const [usersList, setUsersList] = useState(INITIAL_USERS);
 
   // Toast Function
   const addToast = (type, title, message) => {
@@ -2430,25 +2567,45 @@ const App = () => {
   };
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // ... (State & Effect Code sama persis, tidak perlu diubah) ...
-  // Global State
+  // Simpan User Data setiap ada perubahan
+  useEffect(() => {
+    localStorage.setItem('appUsers', JSON.stringify(usersList));
+  }, [usersList]);
+
+  // ... (State global lain sama seperti sebelumnya: attendanceData, lateData, dll) ...
+  // Paste ulang state Attendance dll di sini jika tertimpa
   const [attendanceData, setAttendanceData] = useState([]);
   const [lateData, setLateData] = useState([]);
-  const [ramadhanData, setRamadhanData] = useState([]); 
+  const [ramadhanData, setRamadhanData] = useState([]);
   const [lckhData, setLckhData] = useState([]);
-  const [holidays, setHolidays] = useState(['2024-03-11']); 
-  const [userProfiles, setUserProfiles] = useState({}); 
+  const [holidays, setHolidays] = useState(['2024-03-11']);
+  const [userProfiles, setUserProfiles] = useState({});
 
   // 1. CEK SESI LOGIN
+// Load User Data & Cek Admin
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
-        setView('dashboard');
+      const storedUsers = localStorage.getItem('appUsers');
+      
+      if (storedUsers) {
+        const parsedUsers = JSON.parse(storedUsers);
+        
+        // CEK: Apakah akun Admin Utama (Sya'ban) sudah ada di data browser?
+        const adminExists = parsedUsers.find(u => u.nip === '199911222025051007');
+        
+        if (adminExists) {
+          // Jika ada, pakai data dari browser (aman)
+          setUsersList(parsedUsers);
+        } else {
+          // Jika Admin TIDAK ADA (karena cache lama), kita reset/gabungkan
+          console.log("Resetting users to include Admin...");
+          setUsersList(INITIAL_USERS);
+          localStorage.setItem('appUsers', JSON.stringify(INITIAL_USERS));
+        }
+      } else {
+        // Jika belum ada data sama sekali, pakai INITIAL_USERS
+        setUsersList(INITIAL_USERS);
       }
-      const savedProfiles = localStorage.getItem('userProfiles');
-      if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
     }
   }, []);
 
@@ -2541,26 +2698,19 @@ const App = () => {
 
   useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
 
+  // --- UPDATE LOGIC LOGIN (PENTING: Cek ke usersList) ---
   const handleLogin = (identifier, password) => {
-    const teacher = TEACHERS_DATA.find(t => t.nip === identifier && password === t.nip);
-    if (teacher) { 
-      const userSession = { ...teacher, role: teacher.role || 'teacher' };
-      setCurrentUser(userSession); 
-      localStorage.setItem('currentUser', JSON.stringify(userSession));
+    // Cari user di usersList yang dinamis
+    const validUser = usersList.find(u => u.nip === identifier && u.password === password);
+
+    if (validUser) {
+      setCurrentUser(validUser); 
+      localStorage.setItem('currentUser', JSON.stringify(validUser));
       setView('dashboard'); 
-      addToast('success', 'Login Berhasil', `Selamat datang kembali, ${teacher.name}!`);
-      return; 
+      addToast('success', 'Login Berhasil', `Selamat datang, ${validUser.name} (${validUser.role})!`);
+    } else {
+      addToast('error', 'Login Gagal', 'NIP/NISN atau Password salah.');
     }
-    const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
-    if (staff) { 
-      const userSession = { ...staff, role: 'staff' };
-      setCurrentUser(userSession); 
-      localStorage.setItem('currentUser', JSON.stringify(userSession));
-      setView('dashboard'); 
-      addToast('success', 'Login Berhasil', `Selamat datang, ${staff.name}!`);
-      return; 
-    }
-    addToast('error', 'Login Gagal', 'NIP/NISN atau Password salah.');
   };
 
   const logout = () => { 
@@ -2577,6 +2727,8 @@ const App = () => {
       <LoginScreen onLogin={handleLogin} />
     </>
   );
+  // Cek hak akses untuk render konten utama
+  const userPermissions = currentUser ? (ROLE_PERMISSIONS[currentUser.role] || []) : [];
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row app-layout">
@@ -2605,45 +2757,34 @@ const App = () => {
       </div>
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-gray-50/50">
-        {view === 'dashboard' && <Dashboard user={currentUser} />}
-        {view === 'absen-berjamaah' && (
-            <AbsenBerjamaah 
-                user={currentUser} 
-                data={attendanceData} 
-                setData={setAttendanceData} 
-                holidays={holidays} 
-                setHolidays={setHolidays} 
-                addToast={addToast} // <- PASS PROP INI
-            />
+        {/* Render Dashboard jika punya akses */}
+        {view === 'dashboard' && userPermissions.includes('dashboard') && <Dashboard user={currentUser} />}
+        
+        {/* Render Absen Berjamaah */}
+        {view === 'absen-berjamaah' && userPermissions.includes('absen-berjamaah') && (
+            <AbsenBerjamaah user={currentUser} data={attendanceData} setData={setAttendanceData} holidays={holidays} setHolidays={setHolidays} addToast={addToast} />
         )}
-        {view === 'absen-kesiangan' && (
-            <AbsenKesiangan 
-                user={currentUser} 
-                data={lateData} 
-                setData={setLateData} 
-                addToast={addToast} // <- PASS PROP INI
-            />
+        
+        {/* Render Absen Kesiangan */}
+        {view === 'absen-kesiangan' && userPermissions.includes('absen-kesiangan') && (
+            <AbsenKesiangan user={currentUser} data={lateData} setData={setLateData} addToast={addToast} />
         )}
-        {view === 'absen-ramadhan' && (
-            <AbsenRamadhan 
-                user={currentUser} 
-                data={ramadhanData} 
-                setData={setRamadhanData} 
-                holidays={holidays} 
-                setHolidays={setHolidays} 
-                addToast={addToast} // <- PASS PROP INI
-            />
+        
+        {/* Render Absen Ramadhan */}
+        {view === 'absen-ramadhan' && userPermissions.includes('absen-ramadhan') && (
+            <AbsenRamadhan user={currentUser} data={ramadhanData} setData={setRamadhanData} holidays={holidays} setHolidays={setHolidays} addToast={addToast} />
         )}
-        {view === 'lckh' && (
-            <LCKHManager 
-                user={currentUser} 
-                data={lckhData} 
-                setData={setLckhData} 
-                profiles={userProfiles} 
-                setProfiles={setUserProfiles} 
-                addToast={addToast} 
-            />
+        
+        {/* Render LCKH */}
+        {view === 'lckh' && userPermissions.includes('lckh') && (
+            <LCKHManager user={currentUser} data={lckhData} setData={setLckhData} profiles={userProfiles} setProfiles={setUserProfiles} addToast={addToast} />
         )}
+
+        {/* --- FITUR BARU: MANAJEMEN USER (Hanya Admin) --- */}
+        {view === 'user-management' && userPermissions.includes('user-management') && (
+            <UserManagement users={usersList} setUsers={setUsersList} addToast={addToast} />
+        )}
+
       </main>
     </div>
   );
