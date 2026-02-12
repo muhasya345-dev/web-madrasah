@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Lock, QrCode, ClipboardList, FileText, 
   LogOut, Calendar, Printer, CheckCircle, XCircle, 
-  AlertTriangle, Save, Search, Menu, Trash2, X, Edit, Moon
+  AlertTriangle, Save, Search, Menu, Trash2, X, Edit, Moon,
+  Info, Loader2  // <--- Pastikan Loader2 dan Info ada di sini
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
@@ -13,6 +14,35 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 const supabaseUrl = 'https://wpesevugtidwofhgnokz.supabase.co';
 const supabaseKey = 'sb_publishable_cWPGQRaYpX830TIZ7MVIDQ_2FfG5YMC';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- KOMPONEN NOTIFIKASI (TOAST) ---
+const ToastNotification = ({ toasts, removeToast }) => {
+  return (
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+      {toasts.map((toast) => (
+        <div 
+          key={toast.id} 
+          className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 animate-slide-in ${
+            toast.type === 'success' ? 'bg-green-600' : 
+            toast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+          }`}
+        >
+          {toast.type === 'success' && <CheckCircle size={20} />}
+          {toast.type === 'error' && <XCircle size={20} />}
+          {toast.type === 'info' && <Info size={20} />}
+          <div>
+            <h4 className="font-bold text-sm">{toast.title}</h4>
+            <p className="text-xs opacity-90">{toast.message}</p>
+          </div>
+          <button onClick={() => removeToast(toast.id)} className="ml-2 hover:bg-white/20 p-1 rounded">
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // --- DATA MOCK ---
 
 const STAFF_ACCOUNTS = [
@@ -826,12 +856,9 @@ const getTitimangsa = (dateObj) => {
   return dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const getShortDate = (dateStr) => {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
+const getShortDate = (d) => {
+  const dt = new Date(d);
+  return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
 };
 
 // --- STYLES ---
@@ -988,150 +1015,147 @@ tbody td {
 }
 `;
 
-// --- SUB-COMPONENTS (DEFINED BEFORE APP) ---
+// --- SUB-COMPONENTS ---
 
+// 1. LOGIN SCREEN (REDESAIN LEBIH MENARIK)
 const LoginScreen = ({ onLogin }) => {
   const [id, setId] = useState('');
   const [pass, setPass] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    // Simulasi loading sedikit agar terasa prosesnya
+    setTimeout(() => {
+      onLogin(id, pass);
+      setLoading(false);
+    }, 800);
+  };
 
   return (
-    <div className="min-h-screen flex w-full bg-white">
-      {/* BAGIAN KIRI: FORM LOGIN */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 lg:p-16 bg-white z-10 shadow-2xl md:shadow-none">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center md:text-left">
-            <div className="flex justify-center md:justify-start mb-4">
-               <Image src="/logo kemenag.png" alt="Logo" width={80} height={80} />
-            </div>
-            <h1 className="text-3xl font-extrabold text-green-900 tracking-tight">Selamat Datang</h1>
-            <p className="text-gray-500 mt-2">Silahkan masuk ke Sistem Informasi Manajemen Madrasah</p>
-          </div>
+    <div className="min-h-screen flex w-full relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100">
+      {/* Background Shapes */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-green-200/50 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-yellow-200/50 rounded-full blur-3xl"></div>
 
-          <form onSubmit={(e) => { e.preventDefault(); onLogin(id, pass); }} className="space-y-6 mt-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NIP / NISN</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User size={20} className="text-gray-400" />
-                </div>
-                <input 
-                  type="text" 
-                  name="username" id="username" autoComplete="username"
-                  value={id} onChange={e => setId(e.target.value)} 
-                  className="pl-10 w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black font-semibold transition-all" 
-                  placeholder="Masukkan Nomor Induk" required 
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={20} className="text-gray-400" />
-                </div>
-                <input 
-                  type="password" 
-                  name="password" id="password" autoComplete="current-password"
-                  value={pass} onChange={e => setPass(e.target.value)} 
-                  className="pl-10 w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-black font-semibold transition-all" 
-                  placeholder="••••••••" required 
-                />
-              </div>
-            </div>
-
-            <button type="submit" className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              Masuk Aplikasi
-            </button>
-          </form>
+      <div className="w-full flex items-center justify-center p-4 z-10">
+        <div className="glass-card w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 rounded-2xl overflow-hidden shadow-2xl animate-fade-in-up">
           
-          <div className="mt-6 text-center text-xs text-gray-400">
-            &copy; 2026 MTs Negeri 3 Kota Tasikmalaya. All rights reserved.
-          </div>
-        </div>
-      </div>
+          {/* Kolom Kiri: Form */}
+          <div className="p-8 md:p-12 flex flex-col justify-center bg-white/80">
+            <div className="mb-8 text-center md:text-left">
+              <div className="inline-block p-3 bg-green-50 rounded-xl mb-4 shadow-sm">
+                <Image src="/logo kemenag.png" alt="Logo" width={60} height={60} />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Selamat Datang</h1>
+              <p className="text-gray-500 text-sm">Masuk untuk mengakses Sistem Informasi Madrasah</p>
+            </div>
 
-      {/* BAGIAN KANAN: HEADLINE & GAMBAR (Hanya muncul di Layar Besar/Desktop) */}
-      <div className="hidden md:flex w-1/2 bg-green-800 relative overflow-hidden items-center justify-center">
-        {/* Placeholder Gambar Sekolah - Ganti 'src' dengan path foto madrasah Anda */}
-        <div className="absolute inset-0 z-0">
-           {/* Contoh jika pakai Next.js Image, atau ganti <img> biasa */}
-           <img 
-             src="/gerbang madrasah.jpg" /* GANTI INI DENGAN FILE FOTO MADRASAH */
-             alt="gerbang Madrasah" 
-             className="w-full h-full object-cover opacity-30 mix-blend-overlay"
-             onError={(e) => {e.target.style.display='none'}} // Fallback jika tidak ada gambar
-           />
-           {/* Overlay Gradient */}
-           <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 to-green-700/80"></div>
-        </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">NIP / NISN</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User size={18} className="text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                  </div>
+                  <input 
+                    type="text" value={id} onChange={e => setId(e.target.value)} 
+                    className="pl-10 w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
+                    placeholder="Nomor Induk" required 
+                  />
+                </div>
+              </div>
 
-        {/* Konten Teks Kanan */}
-        <div className="relative z-10 text-center px-12 text-white max-w-lg">
-          <div className="mb-6 inline-block p-3 bg-white/10 rounded-full backdrop-blur-sm border border-white/20">
-             <QrCode size={40} className="text-yellow-300" />
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Password</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={18} className="text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                  </div>
+                  <input 
+                    type="password" value={pass} onChange={e => setPass(e.target.value)} 
+                    className="pl-10 w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all" 
+                    placeholder="••••••••" required 
+                  />
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex justify-center items-center gap-2">
+                {loading ? <Loader2 className="animate-spin" size={20}/> : "Masuk Aplikasi"}
+              </button>
+            </form>
+            
+            <div className="mt-8 text-center">
+              <p className="text-xs text-gray-400">&copy; 2026 MTs Negeri 3 Kota Tasikmalaya</p>
+            </div>
           </div>
-          <h2 className="text-4xl font-bold mb-4 leading-tight">MTs Negeri 3<br/><span className="text-yellow-300">Kota Tasikmalaya</span></h2>
-          <p className="text-green-100 text-lg leading-relaxed">
-            "Maju, Bermutu, Mendunia."
-          </p>
-          
-          {/* Dekorasi Garis */}
-          <div className="mt-8 flex justify-center gap-2">
-            <div className="h-1 w-12 bg-yellow-400 rounded"></div>
-            <div className="h-1 w-4 bg-white/30 rounded"></div>
-            <div className="h-1 w-4 bg-white/30 rounded"></div>
+
+          {/* Kolom Kanan: Visual */}
+          <div className="hidden md:flex flex-col justify-center items-center bg-green-900 relative p-12 text-white overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+               <Image src="/gerbang madrasah.jpeg" layout="fill" objectFit="cover" alt="Background" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-green-900 via-green-900/15 to-transparent"></div>
+            
+            <div className="relative z-10 text-center">
+              <div className="mb-6 w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 mx-auto">
+                <QrCode size={40} className="text-yellow-300" />
+              </div>
+              <h2 className="text-3xl font-bold mb-2">Digitalisasi<br/>Madrasah</h2>
+              <p className="text-green-100 text-sm leading-relaxed max-w-xs mx-auto">
+                Mewujudkan madrasah yang maju, bermutu, dan mendunia melalui teknologi terintegrasi.
+              </p>
+            </div>
           </div>
+
         </div>
       </div>
     </div>
   );
 };
 
+// 2. SIDEBAR (Sedikit penyesuaian visual)
 const SidebarContent = ({ user, currentView, setView, logout }) => {
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  const menuClass = (id) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${currentView === id ? 'bg-green-700 shadow-md font-medium translate-x-1' : 'hover:bg-green-800/50 text-green-100'}`;
+
   return (
-    <div className="flex flex-col h-full bg-green-900 text-white">
-      {/* BAGIAN LOGO MADRASAH */}
-      <div className="p-4 border-b border-green-800 flex flex-col items-center bg-green-950/30">
-        <Image 
-          src="/logo kemenag.png" 
-          alt="Logo" 
-          width={65} 
-          height={65} 
-          className="mb-2 bg-white p-1 rounded-full shadow-lg"
-        />
-        <p className="text-[10px] font-bold text-center leading-tight">MTsN 3 KOTA TASIKMALAYA</p>
+    <div className="flex flex-col h-full bg-gradient-to-b from-green-900 to-green-950 text-white shadow-xl">
+      <div className="p-6 flex flex-col items-center border-b border-green-800/50">
+        <div className="w-16 h-16 bg-white p-1 rounded-full shadow-lg mb-3">
+          <Image src="/logo kemenag.png" alt="Logo" width={60} height={60} className="object-contain" />
+        </div>
+        <p className="text-[10px] font-bold tracking-widest opacity-80">MTSN 3 KOTA TASIKMALAYA</p>
       </div>
 
-      {/* INFO PROFIL USER */}
-      <div className="p-4 border-b border-green-800 flex items-center space-x-2">
-        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-green-800 font-bold shrink-0">
-          {user?.name.charAt(0)}
-        </div>
-        <div className="overflow-hidden">
-          <p className="text-sm font-medium truncate">{user?.name}</p>
-          <p className="text-[10px] text-green-300 uppercase">{user?.role}</p>
+      <div className="p-4 border-b border-green-800/50 bg-green-900/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">
+            {user?.name.charAt(0)}
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-sm font-semibold truncate w-32">{user?.name}</p>
+            <span className="text-[10px] bg-green-800 px-2 py-0.5 rounded-full uppercase tracking-wide text-green-200">{user?.role}</span>
+          </div>
         </div>
       </div>
 
-      {/* NAVIGASI MENU */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${currentView === 'dashboard' ? 'bg-green-700' : 'hover:bg-green-800'}`}><Menu size={18} /> Dashboard</button>
-        <button onClick={() => setView('absen-berjamaah')} className={`w-full flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${currentView === 'absen-berjamaah' ? 'bg-green-700' : 'hover:bg-green-800'}`}><QrCode size={18} /> Absen Berjamaah</button>
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <button onClick={() => setView('dashboard')} className={menuClass('dashboard')}><Menu size={18} /> Dashboard</button>
+        <button onClick={() => setView('absen-berjamaah')} className={menuClass('absen-berjamaah')}><QrCode size={18} /> Absen Berjamaah</button>
         {isTeacher && (
           <>
-            <button onClick={() => setView('absen-kesiangan')} className={`w-full flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${currentView === 'absen-kesiangan' ? 'bg-green-700' : 'hover:bg-green-800'}`}><AlertTriangle size={18} /> Absen Kesiangan</button>
-            <button onClick={() => setView('absen-ramadhan')} className={`w-full flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${currentView === 'absen-ramadhan' ? 'bg-green-700' : 'hover:bg-green-800'}`}><Moon size={18} /> Absen Ramadhan</button>
-            <button onClick={() => setView('lckh')} className={`w-full flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${currentView === 'lckh' ? 'bg-green-700' : 'hover:bg-green-800'}`}><ClipboardList size={18} /> LCKH & LKB</button>
+            <button onClick={() => setView('absen-kesiangan')} className={menuClass('absen-kesiangan')}><AlertTriangle size={18} /> Absen Kesiangan</button>
+            <button onClick={() => setView('absen-ramadhan')} className={menuClass('absen-ramadhan')}><Moon size={18} /> Absen Ramadhan</button>
+            <button onClick={() => setView('lckh')} className={menuClass('lckh')}><ClipboardList size={18} /> LCKH & LKB</button>
           </>
         )}
       </nav>
 
-      {/* TOMBOL KELUAR */}
-      <div className="p-4 border-t border-green-800">
-        <button onClick={logout} className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors shadow-md">
-          <LogOut size={18} /> Keluar
+      <div className="p-4">
+        <button onClick={logout} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-red-600/90 hover:bg-red-600 text-white transition-colors shadow-lg group">
+          <LogOut size={18} className="group-hover:-translate-x-1 transition-transform"/> Keluar
         </button>
       </div>
     </div>
@@ -1139,31 +1163,102 @@ const SidebarContent = ({ user, currentView, setView, logout }) => {
 };
 
 const Dashboard = ({ user }) => (
-  <div className="space-y-6">
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-800">Selamat Datang, {user.name}</h2>
-      <p className="text-gray-600">Sistem Informasi MTs Negeri 3 Kota Tasikmalaya</p>
+  <div className="space-y-6 animate-fade-in-up">
+    <div className="bg-gradient-to-r from-green-700 to-teal-600 p-8 rounded-2xl shadow-lg text-white relative overflow-hidden">
+      <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+      <h2 className="text-3xl font-bold mb-2 relative z-10">Halo, {user.name.split(',')[0]}! 👋</h2>
+      <p className="text-green-100 relative z-10">Selamat datang kembali di Dashboard Sistem Informasi.</p>
     </div>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-        <h3 className="text-lg font-semibold text-blue-800 mb-2">Absensi Hari Ini</h3>
-        <p className="text-sm text-blue-500">Siswa Hadir</p>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+          <div><p className="text-sm text-gray-500 font-medium">Absensi Hari Ini</p><h3 className="text-2xl font-bold text-gray-800">Hadir</h3></div>
+          <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><CheckCircle size={24}/></div>
+        </div>
       </div>
-      <div className="bg-green-50 p-6 rounded-lg border border-green-100">
-        <h3 className="text-lg font-semibold text-green-800 mb-2">Tanggal</h3>
-        <p className="text-xl font-medium text-green-700">{getFormattedDate(new Date())}</p>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+          <div><p className="text-sm text-gray-500 font-medium">Tanggal</p><h3 className="text-xl font-bold text-gray-800">{getFormattedDate(new Date())}</h3></div>
+          <div className="p-2 bg-green-50 rounded-lg text-green-600"><Calendar size={24}/></div>
+        </div>
       </div>
       {user.role !== 'staff' && (
-         <div className="bg-purple-50 p-6 rounded-lg border border-purple-100">
-         <h3 className="text-lg font-semibold text-purple-800 mb-2">Laporan Kinerja</h3>
-         <p className="text-sm text-purple-600">Jangan lupa isi LCKH hari ini!</p>
-       </div>
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+           <div className="flex justify-between items-start mb-4">
+             <div><p className="text-sm text-gray-500 font-medium">Laporan Kinerja</p><h3 className="text-lg font-bold text-gray-800">Isi LCKH</h3></div>
+             <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><ClipboardList size={24}/></div>
+           </div>
+         </div>
       )}
     </div>
   </div>
 );
 
-const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
+// --- 1. KOMPONEN MODAL EDIT (Letakkan di atas LCKHManager atau di luar komponen apapun) ---
+// --- 1. KOMPONEN MODAL EDIT (DIPERBAIKI) ---
+const ModalEditLCKH = ({ onClose, data, onSave, activityList, nip }) => {
+  // HAPUS baris: if (!isOpen) return null; agar Hooks selalu jalan
+  
+  const [formData, setFormData] = useState(data || {});
+  const [unit, setUnit] = useState(data?.unit || '');
+
+  useEffect(() => {
+    if(data) {
+        setFormData(data);
+        const list = nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST;
+        const act = list.find(a => a.name === data.activity);
+        if (act) setUnit(act.unit);
+    }
+  }, [data, nip]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'activity') {
+        const list = nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST;
+        const act = list.find(a => a.name === value);
+        if (act) setUnit(act.unit);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({ ...formData, unit });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in-up">
+      <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-green-700 p-4 flex justify-between items-center text-white">
+          <h3 className="font-bold flex items-center gap-2"><Edit size={18}/> Edit LCKH</h3>
+          <button onClick={onClose} className="hover:bg-white/20 p-1 rounded"><X size={20}/></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div><label className="block text-sm font-medium mb-1">Tanggal</label><input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none" required /></div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Kegiatan</label>
+            <select name="activity" value={formData.activity || ''} onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none" required>
+                <option value="">-- Pilih --</option>
+                {activityList.map((a, i) => <option key={i} value={a.name}>{a.name}</option>)}
+            </select>
+          </div>
+          <div><label className="block text-sm font-medium mb-1">Uraian</label><textarea name="desc" value={formData.desc || ''} onChange={handleChange} rows="3" className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none" required></textarea></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium mb-1">Volume</label><input type="number" name="volume" min="1" value={formData.volume || 0} onChange={handleChange} className="w-full border p-2 rounded" required /></div>
+            <div><label className="block text-sm font-medium mb-1">Satuan</label><input type="text" value={unit} readOnly className="w-full bg-gray-100 border p-2 rounded" /></div>
+          </div>
+          <div className="pt-4 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
+            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 shadow-md">Simpan Perubahan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }) => {
   const [tab, setTab] = useState('scan');
   const [scanInput, setScanInput] = useState('');
   const [manualSearch, setManualSearch] = useState("");
@@ -1186,10 +1281,19 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   };
 
   const processAttendance = async (studentId, status, viaMethod) => {
-    if (!isWorkingDay(currentDate)) { alert('Hari Libur/Bukan Jadwal.'); return false; }
+    if (!isWorkingDay(currentDate)) { 
+        addToast('error', 'Bukan Jadwal', 'Hari ini hari libur atau bukan jadwal shalat.'); 
+        return false; 
+    }
+    
     const student = STUDENTS.find(s => s.id === studentId);
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
-    if (localCheck) { alert(`GAGAL: Siswa ${student.name} SUDAH absen!`); return false; }
+    
+    if (localCheck) { 
+        if (viaMethod === 'Scan') addToast('info', 'Sudah Absen', `Siswa ${student.name} sudah tercatat hadir.`);
+        else addToast('error', 'Gagal', `Siswa ${student.name} SUDAH absen hari ini!`);
+        return false; 
+    }
 
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
@@ -1197,13 +1301,16 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
     }]).select();
 
     if (!error) {
-      if(viaMethod === 'Scan') alert(`Berhasil Scan: ${student.name}`);
+      if(viaMethod === 'Scan') addToast('success', 'Scan Berhasil', `${student.name} - ${student.class}`);
+      else addToast('success', 'Absen Manual', `Berhasil mencatat: ${student.name}`);
       return true;
     } else {
-      alert('Gagal menyimpan ke database.'); return false;
+      addToast('error', 'Error Database', 'Gagal menyimpan data ke server.'); 
+      return false;
     }
   };
 
+  // Logic Scanner & Input Manual (Sama)
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1212,13 +1319,16 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 300, height: 300 } }, 
           async (decodedText) => {
             const now = Date.now();
-            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 5000)) return;
+            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 3000)) return;
             lastScanRef.current = { code: decodedText, timestamp: now };
+            
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
               scanner.pause();
               await processAttendance(student.id, 'Hadir', 'Scan');
-              setTimeout(() => scanner.resume(), 2000);
+              setTimeout(() => scanner.resume(), 1500);
+            } else {
+               addToast('error', 'QR Tidak Dikenal', 'Kode QR tidak terdaftar.');
             }
           }, () => {}).catch(console.error);
       });
@@ -1229,7 +1339,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const handleScanInput = async (e) => {
     e.preventDefault();
     const student = STUDENTS.find(s => s.code === scanInput);
-    if (!student) return alert('Barcode salah!');
+    if (!student) { addToast('error', 'Tidak Ditemukan', 'Barcode siswa tidak valid.'); return; }
     const success = await processAttendance(student.id, 'Hadir', 'Scan');
     if (success) setScanInput('');
   };
@@ -1239,50 +1349,57 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClassRecap];
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center no-print">
-        <h2 className="text-xl font-bold flex items-center gap-2"><QrCode /> Absensi Berjamaah</h2>
-        <input type="date" value={currentDate} disabled className="border rounded p-1 bg-gray-100" />
+    <div className="space-y-4 animate-fade-in-up">
+      <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
+        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><QrCode className="text-green-600"/> Absensi Berjamaah</h2>
+        <div className="bg-gray-100 px-3 py-1 rounded-lg text-sm font-medium text-gray-600">{getFormattedDate(new Date(currentDate))}</div>
       </div>
 
       <div className="flex space-x-2 border-b no-print overflow-x-auto pb-2 whitespace-nowrap">
         {tabs.map(t => (
-           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 capitalize ${tab === t ? 'border-b-2 border-green-600 text-green-700 font-bold' : 'text-gray-500'}`}>
+           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-t-lg transition-all ${tab === t ? 'bg-white border-b-2 border-green-600 text-green-700 font-bold shadow-sm' : 'text-gray-500 hover:bg-white/50'}`}>
              {t === 'rekap-range' ? 'Rekap Mingguan/Range' : t.replace('-', ' ')}
            </button>
         ))}
-        {isPrivileged && <button onClick={() => setTab('settings')} className={`px-4 py-2`}>Pengaturan Libur</button>}
+        {isPrivileged && <button onClick={() => setTab('settings')} className="px-4 py-2 text-gray-500 hover:text-green-600">Libur</button>}
       </div>
 
-      <div className="bg-white p-4 rounded shadow min-h-[400px]">
+      <div className="bg-white p-6 rounded-xl shadow-sm min-h-[400px] border border-gray-100">
         {tab === 'scan' && (
-          <div className="max-w-lg mx-auto text-center space-y-4">
-             <div className="w-full h-[500px] bg-black rounded-lg overflow-hidden border-2 border-green-600">
+          <div className="max-w-lg mx-auto text-center space-y-6">
+             <div className="w-full h-[400px] bg-black rounded-2xl overflow-hidden border-4 border-green-500 shadow-xl relative">
                 <div id="reader" className="w-full h-full"></div>
+                <div className="absolute bottom-4 left-0 right-0 text-white text-xs bg-black/50 py-1">Arahkan kamera ke QR Code Siswa</div>
              </div>
              <form onSubmit={handleScanInput} className="flex gap-2">
-               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Barcode Manual..." className="flex-1 border p-2 rounded" autoFocus />
-               <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
+               <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Barcode Manual..." className="flex-1 border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" autoFocus />
+               <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 rounded-lg font-bold shadow-md transition-colors">Cek</button>
              </form>
           </div>
         )}
 
         {tab === 'manual' && (
           <div>
-            <div className="mb-4 relative"><Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" /><input type="text" className="pl-10 w-full border p-2 rounded" placeholder="Cari Siswa..." value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} /></div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kelas</th><th className="p-2 border">Status</th></tr></thead>
-                <tbody>
+            <div className="mb-4 relative group">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400 group-focus-within:text-green-500" />
+                <input type="text" className="pl-10 w-full border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" placeholder="Cari Siswa (Nama / Kelas)..." value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} />
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600 font-semibold text-left"><tr><th className="p-3">Nama</th><th className="p-3">Kelas</th><th className="p-3">Status</th></tr></thead>
+                <tbody className="divide-y">
                   {manualStudents.slice(0, 50).map(s => { 
                     const st = getStatus(s.id, currentDate);
                     const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
                     return (
-                      <tr key={s.id} className="border-b">
-                        <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
-                        <td className="p-2 flex gap-1">
-                          {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                            <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 text-xs rounded border ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : ''}`}>{status}</button>
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="p-3">{s.name}</td><td className="p-3">{s.class}</td>
+                        <td className="p-3 flex gap-2">
+                          {['Hadir', 'Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
+                            <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} 
+                                className={`px-3 py-1 text-xs rounded-full border transition-all ${st === status ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white hover:bg-green-50 text-gray-600'} ${isRec && st !== status ? 'opacity-30 cursor-not-allowed' : ''}`}>
+                                {status}
+                            </button>
                           ))}
                         </td>
                       </tr>
@@ -1295,55 +1412,50 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
         )}
 
         {tab === 'rekap-harian' && isPrivileged && (
-          <div>
-             <div className="flex flex-wrap items-center gap-2 mb-4 no-print">
-               <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} className="border p-2 rounded">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select>
-               <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded ml-auto flex items-center gap-2"><Printer size={16}/> Print</button>
+          <div className="animate-fade-in-up w-full">
+             <div className="flex flex-wrap items-center gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
+               <label className="font-bold text-gray-700">Kelas:</label>
+               <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} className="border p-2 rounded bg-white">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select>
+               <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded ml-auto flex items-center gap-2 shadow-sm hover:bg-blue-700"><Printer size={16}/> Print</button>
              </div>
-             <div className="print-area">
-                <div className="text-center border-b-2 border-black pb-4 mb-4 hidden print:block">
-                  <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
-                  <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
-                </div>
-                <h3 className="text-center font-bold text-lg mb-4 uppercase">Rekap Absensi Berjamaah Harian ({getFormattedDate(new Date(currentDate))})</h3>
-                <p className="text-center font-bold mb-2">Kelas: {selectedClassRecap}</p>
-                <table className="w-full border-collapse border border-black text-sm">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="border border-black p-2" style={{width: '5%'}}>No</th>
-                      <th className="border border-black p-2" style={{width: '45%'}}>Nama</th>
-                      <th className="border border-black p-2" style={{width: '20%'}}>Status</th>
-                      <th className="border border-black p-2" style={{width: '30%'}}>Petugas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {STUDENTS.filter(s => s.class === selectedClassRecap).map((s, idx) => {
-                      const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
-                      return <tr key={s.id}><td className="border border-black p-1 text-center">{idx+1}</td><td className="border border-black p-1">{s.name}</td><td className="border border-black p-1 text-center">{rec?.status || 'Alfa'}</td><td className="border border-black p-1 text-center">{rec?.officer || '-'}</td></tr>;
-                    })}
-                  </tbody>
-                </table>
+             
+             {/* PREVIEW WRAPPER */}
+             <div className="preview-wrapper">
+               <div className="sheet">
+                  <h3 className="text-center font-bold text-lg mb-4 uppercase">Rekap Absensi Berjamaah Harian ({getFormattedDate(new Date(currentDate))})</h3>
+                  <p className="text-center font-bold mb-2">Kelas: {selectedClassRecap}</p>
+                  <table className="w-full border-collapse border border-black text-sm">
+                    <thead><tr className="bg-gray-200"><th className="border border-black p-2">No</th><th className="border border-black p-2">Nama</th><th className="border border-black p-2">Status</th><th className="border border-black p-2">Petugas</th></tr></thead>
+                    <tbody>
+                      {STUDENTS.filter(s => s.class === selectedClassRecap).map((s, idx) => {
+                        const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
+                        return <tr key={s.id}><td className="border border-black p-1 text-center">{idx+1}</td><td className="border border-black p-1">{s.name}</td><td className="border border-black p-1 text-center">{rec?.status || 'Alfa'}</td><td className="border border-black p-1 text-center">{rec?.officer || '-'}</td></tr>;
+                      })}
+                    </tbody>
+                  </table>
+               </div>
              </div>
           </div>
         )}
 
         {tab === 'rekap-range' && isPrivileged && (
-          <div>
-            <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded border">
-              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-              <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
-              <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAll" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAll" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
-              <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
+          <div className="animate-fade-in-up w-full">
+            <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
+                <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
+                <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAll" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAll" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
+                <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
             </div>
             
-            <div className="print-area">
+            {/* PREVIEW WRAPPER - RENDERING ULANG TABEL AGAR MUNCUL */}
+            <div className="preview-wrapper">
                {classesToPrint.map((className) => {
                  const classStudents = STUDENTS.filter(s => s.class === className);
                  const wk = WALI_KELAS_MAP[className];
                  return (
-                   <div key={className} className="page-break mb-10">
-                      <div className="text-center border-b-2 border-black pb-4 mb-4 hidden print:block">
+                   <div key={className} className="sheet">
+                      <div className="text-center border-b-2 border-black pb-4 mb-4">
                         <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
                         <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
                       </div>
@@ -1382,7 +1494,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
                         </tbody>
                       </table>
 
-                      <div className="mt-8 flex justify-end" style={{ pageBreakInside: 'avoid' }}>
+                      <div className="signature-section mt-8 flex justify-end">
                         <div className="text-center w-64">
                           <p>Tasikmalaya, {getTitimangsa(new Date())}</p>
                           <p>Wali Kelas {className}</p>
@@ -1399,15 +1511,16 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays }) => {
         )}
         
         {tab === 'settings' && isPrivileged && (
-          <div><h3 className="font-bold mb-4">Pengaturan Hari Libur</h3><div className="flex gap-2 mb-4"><input type="date" id="holidayInput" className="border p-2 rounded" /><button onClick={() => { const val = document.getElementById('holidayInput').value; if(val) setHolidays([...holidays, val]); }} className="bg-red-600 text-white px-4 py-2 rounded">Tambah</button></div><ul className="list-disc pl-5">{holidays.map(h => <li key={h} className="text-red-600">{getFormattedDate(new Date(h))} <button onClick={() => setHolidays(holidays.filter(x => x !== h))} className="ml-2 text-gray-400 text-xs">(Hapus)</button></li>)}</ul></div>
+          <div><h3 className="font-bold mb-4">Pengaturan Hari Libur</h3><div className="flex gap-2 mb-4"><input type="date" id="holidayInput" className="border p-2 rounded" /><button onClick={() => { const val = document.getElementById('holidayInput').value; if(val) { setHolidays([...holidays, val]); addToast('success','Disimpan','Hari libur ditambahkan'); } }} className="bg-red-600 text-white px-4 py-2 rounded">Tambah</button></div><ul className="list-disc pl-5">{holidays.map(h => <li key={h} className="text-red-600">{getFormattedDate(new Date(h))} <button onClick={() => setHolidays(holidays.filter(x => x !== h))} className="ml-2 text-gray-400 text-xs">(Hapus)</button></li>)}</ul></div>
         )}
       </div>
     </div>
   );
 };
 
-const AbsenKesiangan = ({ user, data, setData }) => {
-  const [viewMode, setViewMode] = useState('daily');
+const AbsenKesiangan = ({ user, data, setData, addToast }) => {
+  // Tambah mode 'daily-print'
+  const [viewMode, setViewMode] = useState('daily'); // 'daily', 'daily-print', 'monthly'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [studentId, setStudentId] = useState('');
   const [reason, setReason] = useState('');
@@ -1420,6 +1533,8 @@ const AbsenKesiangan = ({ user, data, setData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!studentId) { addToast('error', 'Belum Dipilih', 'Silakan pilih siswa terlebih dahulu.'); return; }
+    
     const student = STUDENTS.find(s => s.id === parseInt(studentId));
     if (!student) return;
 
@@ -1430,8 +1545,10 @@ const AbsenKesiangan = ({ user, data, setData }) => {
 
     if (!error) {
       setData([...data, { ...inserted[0], studentId: student.id, studentName: student.name, class: student.class }]);
-      alert('Data kesiangan tersimpan di Cloud!');
+      addToast('success', 'Tersimpan', `Siswa ${student.name} tercatat kesiangan.`);
       setStudentId(''); setReason(''); setStudentSearch('');
+    } else {
+      addToast('error', 'Gagal', 'Terjadi kesalahan sistem.');
     }
   };
 
@@ -1444,72 +1561,155 @@ const AbsenKesiangan = ({ user, data, setData }) => {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center no-print">
-        <h2 className="text-xl font-bold flex items-center gap-2"><AlertTriangle /> Absensi Kesiangan</h2>
-        <div className="flex gap-2">
-          <button onClick={() => setViewMode('daily')} className={`px-3 py-1 rounded text-sm ${viewMode === 'daily' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Harian</button>
-          {isPrivileged && <button onClick={() => setViewMode('monthly')} className={`px-3 py-1 rounded text-sm ${viewMode === 'monthly' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Rekap Bulanan</button>}
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
+        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><AlertTriangle className="text-orange-500"/> Absensi Kesiangan</h2>
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+          <button onClick={() => setViewMode('daily')} className={`px-3 py-1.5 rounded-md text-sm transition-all ${viewMode === 'daily' || viewMode === 'daily-print' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-gray-500'}`}>Harian</button>
+          {isPrivileged && <button onClick={() => setViewMode('monthly')} className={`px-3 py-1.5 rounded-md text-sm transition-all ${viewMode === 'monthly' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-gray-500'}`}>Rekap Bulanan</button>}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4 no-print bg-white p-2 rounded shadow">
-        <label className="text-sm font-bold">Filter Kelas:</label>
-        <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="border p-1 rounded">
-          <option value="All">Semua</option>
+      <div className="flex items-center gap-3 mb-4 no-print bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+        <label className="text-xs font-bold text-gray-500 uppercase">Filter Kelas:</label>
+        <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="border p-2 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none">
+          <option value="All">Semua Kelas</option>
           {Object.keys(WALI_KELAS_MAP).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         {viewMode === 'monthly' && (
           <>
-            <select value={rekapMonth} onChange={e => setRekapMonth(parseInt(e.target.value))} className="border p-1 rounded">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-            <select value={rekapYear} onChange={e => setRekapYear(parseInt(e.target.value))} className="border p-1 rounded">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
+            <select value={rekapMonth} onChange={e => setRekapMonth(parseInt(e.target.value))} className="border p-2 rounded-md text-sm bg-gray-50">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+            <select value={rekapYear} onChange={e => setRekapYear(parseInt(e.target.value))} className="border p-2 rounded-md text-sm bg-gray-50">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
           </>
         )}
       </div>
       
-      {viewMode === 'daily' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-4 rounded shadow no-print">
-            <h3 className="font-bold mb-4">Input Siswa Terlambat</h3>
-            <form onSubmit={handleSubmit} className="space-y-3">
-               <div><label className="block text-sm">Tanggal</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full border p-2 rounded" /></div>
-               <div><label className="block text-sm">Cari Siswa</label><input type="text" className="w-full border p-2 rounded" placeholder="Ketik nama..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} /></div>
-               <div><label className="block text-sm">Pilih</label><select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full border p-2 rounded" required><option value="">-- Pilih --</option>{filteredStudentOptions.map(s => <option key={s.id} value={s.id}>{s.name} - {s.class}</option>)}</select></div>
-               <div><label className="block text-sm">Alasan</label><input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full border p-2 rounded" required /></div>
-               <button type="submit" className="w-full bg-orange-600 text-white py-2 rounded">Simpan</button>
-            </form>
+      {/* --- MODE HARIAN & CETAK HARIAN --- */}
+      {(viewMode === 'daily' || viewMode === 'daily-print') && (
+        <>
+          {/* Tampilan Input & List di Layar (Mode: daily) */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${viewMode === 'daily-print' ? 'hidden' : ''}`}>
+            {/* Form Input */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+              <h3 className="font-bold mb-4 text-orange-700 flex items-center gap-2"><Edit size={18}/> Input Siswa Terlambat</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                 <div><label className="block text-sm font-medium mb-1">Tanggal</label><input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" /></div>
+                 <div><label className="block text-sm font-medium mb-1">Cari Siswa</label><input type="text" className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Ketik nama untuk memfilter..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} /></div>
+                 <div>
+                   <label className="block text-sm font-medium mb-1">Pilih Siswa</label>
+                   <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none bg-white" required size={5}>
+                      {filteredStudentOptions.length === 0 && <option disabled>Tidak ada siswa ditemukan</option>}
+                      {filteredStudentOptions.map(s => <option key={s.id} value={s.id} className="p-1">{s.name} - {s.class}</option>)}
+                   </select>
+                 </div>
+                 <div><label className="block text-sm font-medium mb-1">Alasan</label><input type="text" value={reason} onChange={e => setReason(e.target.value)} className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Contoh: Bangun kesiangan" required /></div>
+                 <button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg shadow-md transition-all">Simpan Data</button>
+              </form>
+            </div>
+
+            {/* Daftar Harian */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                  <h3 className="font-bold text-gray-700">Daftar Terlambat ({getFormattedDate(new Date(selectedDate))})</h3>
+                  {/* Tombol ini sekarang mengubah mode ke 'daily-print' agar masuk mode kertas A4 */}
+                  <button onClick={() => setViewMode('daily-print')} className="no-print text-blue-600 hover:bg-blue-50 p-2 rounded-lg text-sm flex gap-1 transition-colors"><Printer size={16}/> Preview & Print</button>
+              </div>
+              <div className="overflow-y-auto max-h-[500px]">
+                  {dailyData.length === 0 ? <p className="text-center text-gray-400 py-10 italic">Tidak ada data keterlambatan.</p> : (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-white"><tr className="bg-orange-50 text-orange-800"><th className="p-3 text-left rounded-l-lg">Nama</th><th className="p-3 text-left">Kelas</th><th className="p-3 text-left rounded-r-lg">Alasan</th></tr></thead>
+                        <tbody className="divide-y">
+                            {dailyData.map(d => <tr key={d.id} className="hover:bg-gray-50"><td className="p-3 font-medium">{d.studentName}</td><td className="p-3 text-gray-500">{d.class}</td><td className="p-3 text-gray-600 italic">{d.reason}</td></tr>)}
+                        </tbody>
+                      </table>
+                  )}
+              </div>
+            </div>
           </div>
-          <div className="bg-white p-4 rounded shadow">
-            <div className="flex justify-between items-center mb-4"><h3 className="font-bold">Daftar ({getFormattedDate(new Date(selectedDate))})</h3><button onClick={() => window.print()} className="no-print text-blue-600 text-sm flex gap-1"><Printer size={14}/> Print</button></div>
-            <table className="w-full text-sm border-collapse border border-gray-300">
-              <thead><tr className="bg-gray-100"><th className="border p-2">Nama</th><th className="border p-2">Kelas</th><th className="border p-2">Alasan</th></tr></thead>
-              <tbody>{dailyData.map(d => <tr key={d.id}><td className="border p-2">{d.studentName}</td><td className="border p-2">{d.class}</td><td className="border p-2">{d.reason}</td></tr>)}</tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        isPrivileged && (
-          <div className="bg-white p-8 rounded shadow">
-             <div className="flex justify-end mb-4 no-print"><button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"><Printer size={16} /> Print</button></div>
+
+          {/* Tampilan CETAK HARIAN (Mode: daily-print) - Mirip Sheet LCKH */}
+          {viewMode === 'daily-print' && (
+             <div className="w-full animate-fade-in-up">
+                <div className="no-print flex justify-between bg-gray-100 p-4 rounded-lg mb-4 items-center">
+                   <button onClick={() => setViewMode('daily')} className="text-gray-600 hover:text-black font-bold flex gap-2 items-center"><X size={18}/> Kembali</button>
+                   <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2"><Printer size={18}/> Cetak Sekarang</button>
+                </div>
+                
+                <div className="preview-wrapper">
+                   <div className="sheet">
+                      <div className="text-center border-b-2 border-black pb-4 mb-4">
+                         <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
+                         <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
+                      </div>
+                      <h3 className="text-center font-bold text-lg mb-4 uppercase">Laporan Siswa Terlambat Harian</h3>
+                      <p className="text-center mb-4">Tanggal: {getFormattedDate(new Date(selectedDate))}</p>
+                      
+                      <table className="w-full border-collapse border border-black text-sm">
+                        <thead>
+                          <tr className="bg-gray-200">
+                            <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                            <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
+                            <th className="border border-black p-2" style={{width: '15%'}}>Kelas</th>
+                            <th className="border border-black p-2" style={{width: '40%'}}>Alasan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dailyData.length === 0 ? (
+                             <tr><td colSpan="4" className="border border-black p-4 text-center italic">Tidak ada siswa terlambat hari ini.</td></tr>
+                          ) : (
+                             dailyData.map((d, i) => (
+                               <tr key={d.id}>
+                                 <td className="border border-black p-2 text-center">{i+1}</td>
+                                 <td className="border border-black p-2">{d.studentName}</td>
+                                 <td className="border border-black p-2 text-center">{d.class}</td>
+                                 <td className="border border-black p-2">{d.reason}</td>
+                               </tr>
+                             ))
+                          )}
+                        </tbody>
+                      </table>
+                      
+                      <div className="mt-8 flex justify-end no-break-inside">
+                         <div className="text-center w-64">
+                            <p>Tasikmalaya, {getTitimangsa(new Date(selectedDate))}</p>
+                            <p>Petugas Piket,</p>
+                            <br/><br/><br/>
+                            <p className="font-bold underline">{user.name}</p>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          )}
+        </>
+      )}
+
+      {/* --- MODE REKAP BULANAN --- */}
+      {viewMode === 'monthly' && isPrivileged && (
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 animate-fade-in-up">
+             <div className="flex justify-end mb-4 no-print"><button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"><Printer size={16} /> Print Laporan</button></div>
              <div className="print-area overflow-x-auto">
-               <div className="text-center border-b-2 border-black pb-4 mb-4 hidden print:block">
-                  <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
-                  <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
+               {/* Gunakan class 'sheet' agar style print konsisten */}
+               <div className="sheet mx-auto shadow-none"> 
+                   <div className="text-center border-b-2 border-black pb-4 mb-4">
+                      <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
+                      <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
+                   </div>
+                   <h3 className="text-center font-bold text-lg mb-4 uppercase">Rekap Absensi Kesiangan ({MONTHS[rekapMonth]} {rekapYear})</h3>
+                   <table className="w-full text-sm border-collapse border border-black min-w-[600px]">
+                     <thead><tr className="bg-gray-200"><th className="border border-black p-2">No</th><th className="border border-black p-2">Tanggal</th><th className="border border-black p-2">Nama</th><th className="border border-black p-2">Kelas</th><th className="border border-black p-2">Alasan</th></tr></thead>
+                     <tbody>{monthlyData.map((d, idx) => <tr key={d.id}><td className="border border-black p-2 text-center">{idx+1}</td><td className="border border-black p-2 text-center">{getShortDate(d.date)}</td><td className="border border-black p-2">{d.studentName}</td><td className="border border-black p-2 text-center">{d.class}</td><td className="border border-black p-2">{d.reason}</td></tr>)}</tbody>
+                   </table>
                </div>
-               <h3 className="text-center font-bold text-lg mb-4 uppercase">Rekap Absensi Kesiangan ({MONTHS[rekapMonth]} {rekapYear})</h3>
-               <table className="w-full text-sm border-collapse border border-black min-w-[600px]">
-                 <thead><tr className="bg-gray-200"><th className="border border-black p-2">No</th><th className="border border-black p-2">Tanggal</th><th className="border border-black p-2">Nama</th><th className="border border-black p-2">Kelas</th><th className="border border-black p-2">Alasan</th></tr></thead>
-                 <tbody>{monthlyData.map((d, idx) => <tr key={d.id}><td className="border border-black p-2 text-center">{idx+1}</td><td className="border border-black p-2 text-center">{getShortDate(d.date)}</td><td className="border border-black p-2">{d.studentName}</td><td className="border border-black p-2 text-center">{d.class}</td><td className="border border-black p-2">{d.reason}</td></tr>)}</tbody>
-               </table>
              </div>
           </div>
-        )
       )}
     </div>
   );
 };
 
-const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
+const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast }) => {
   const [tab, setTab] = useState('scan');
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
@@ -1532,10 +1732,15 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   };
 
   const processAttendance = async (studentId, status, viaMethod) => {
-    if (!isRamadhanDay(currentDate)) { alert('Bukan Jadwal Ramadhan!'); return false; }
+    if (!isRamadhanDay(currentDate)) { addToast('error', 'Bukan Jadwal', 'Hari ini bukan jadwal kegiatan Ramadhan.'); return false; }
+    
     const student = STUDENTS.find(s => s.id === studentId);
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
-    if (localCheck) { alert(`GAGAL: Siswa ${student.name} SUDAH absen!`); return false; }
+    
+    if (localCheck) { 
+        if(viaMethod !== 'Scan') addToast('error', 'Gagal', `Siswa ${student.name} sudah absen.`);
+        return false; 
+    }
 
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
@@ -1543,10 +1748,11 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
     }]).select();
 
     if (!error) {
-      if (viaMethod === 'Scan') alert(`Ramadhan Berhasil: ${student.name}`);
+      if (viaMethod === 'Scan') addToast('success', 'Ramadhan', `${student.name} Hadir`);
+      else addToast('success', 'Manual', `${student.name} berhasil dicatat.`);
       return true;
     } else {
-      alert('Gagal koneksi database.'); return false;
+      addToast('error', 'Gagal', 'Koneksi Database Bermasalah.'); return false;
     }
   };
 
@@ -1558,13 +1764,14 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, 
           async (decodedText) => {
             const now = Date.now();
-            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 5000)) return; 
+            if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 3000)) return; 
             lastScanRef.current = { code: decodedText, timestamp: now };
+            
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
               scanner.pause();
               await processAttendance(student.id, 'Hadir', 'Scan');
-              setTimeout(() => scanner.resume(), 2500);
+              setTimeout(() => scanner.resume(), 2000);
             }
           }, () => {}).catch(console.error);
       });
@@ -1575,7 +1782,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const handleScanInput = async (e) => {
       e.preventDefault();
       const student = STUDENTS.find(s => s.code === scanInput);
-      if (!student) return alert('Barcode tidak terdaftar!');
+      if (!student) { addToast('error', 'Salah', 'Barcode tidak ditemukan'); return; }
       const success = await processAttendance(student.id, 'Hadir', 'Scan');
       if (success) setScanInput('');
   };
@@ -1585,165 +1792,181 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays }) => {
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClass];
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center no-print">
-        <h2 className="text-xl font-bold flex items-center gap-2"><Moon /> Absen Ramadhan</h2>
-        <input type="date" value={currentDate} disabled className="border rounded p-1 bg-gray-100" />
+    <div className="space-y-4 animate-fade-in-up">
+      <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
+        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><Moon className="text-purple-600"/> Absen Ramadhan</h2>
+        <div className="bg-gray-100 px-3 py-1 rounded-lg text-sm text-gray-600">{getFormattedDate(new Date(currentDate))}</div>
       </div>
 
       <div className="flex space-x-2 border-b no-print overflow-x-auto">
-        {tabs.map(t => <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 capitalize ${tab===t ? 'border-b-2 border-green-600 font-bold' : ''}`}>{t === 'rekap-range' ? 'Rekap Mingguan/Range' : t.replace('-', ' ')}</button>)}
-        {isPrivileged && <button onClick={() => setTab('settings')} className="px-4 py-2">Pengaturan Libur</button>}
+        {tabs.map(t => <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 capitalize transition-all rounded-t-lg ${tab===t ? 'bg-white border-b-2 border-purple-600 font-bold text-purple-700 shadow-sm' : 'text-gray-500 hover:bg-white/50'}`}>{t === 'rekap-range' ? 'Rekap Mingguan/Range' : t.replace('-', ' ')}</button>)}
+        {isPrivileged && <button onClick={() => setTab('settings')} className="px-4 py-2 text-gray-500 hover:text-purple-600">Libur</button>}
       </div>
 
-      <div className="bg-white p-4 rounded shadow">
+      <div className="bg-white p-6 rounded-xl shadow-sm min-h-[400px] border border-gray-100">
         {tab === 'scan' && (
-          <div className="max-w-md mx-auto text-center space-y-4">
-            <div id="reader-ramadhan" className="overflow-hidden rounded-lg border-2 border-orange-500 min-h-[300px] bg-black"></div>
+          <div className="max-w-md mx-auto text-center space-y-6">
+            <div className="w-full h-[350px] bg-black rounded-2xl overflow-hidden border-4 border-purple-500 shadow-xl relative">
+                <div id="reader-ramadhan" className="w-full h-full"></div>
+                <div className="absolute bottom-2 left-0 right-0 text-white text-xs bg-black/50 py-1">Mode Ramadhan Aktif</div>
+            </div>
             <form onSubmit={handleScanInput} className="flex gap-2">
-              <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Alat Tembak..." className="flex-1 border p-2 rounded" autoFocus />
-              <button type="submit" className="bg-green-600 text-white px-4 rounded">Cek</button>
+              <input type="text" value={scanInput} onChange={e => setScanInput(e.target.value)} placeholder="Scan Alat Tembak..." className="flex-1 border p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" autoFocus />
+              <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-6 rounded-lg font-bold shadow-md">Cek</button>
             </form>
           </div>
         )}
 
         {tab === 'manual' && (
           <div>
-            <div className="mb-4"><input type="text" className="w-full border p-2 rounded" placeholder="Cari Siswa..." value={manualSearch} onChange={e => setManualSearch(e.target.value)} /></div>
-            <table className="w-full border-collapse">
-              <thead><tr className="bg-gray-100"><th className="p-2 border">Nama</th><th className="p-2 border">Kls</th><th className="p-2 border">Status</th></tr></thead>
-              <tbody>
-                {manualStudents.slice(0,50).map(s => {
-                    const st = getStatus(s.id, currentDate);
-                    const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
-                    return (
-                        <tr key={s.id} className="border-b">
-                            <td className="p-2">{s.name}</td><td className="p-2">{s.class}</td>
-                            <td className="p-2 flex gap-1">
-                                {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                                    <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 border rounded text-xs ${st === status ? 'bg-blue-600 text-white' : ''} ${isRec && st !== status ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}>{status}</button>
-                                ))}
-                            </td>
-                        </tr>
-                    )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tab === 'rekap-harian' && isPrivileged && (
-          <div>
-              <div className="flex gap-2 mb-4 no-print">
-                <label className="font-bold">Kelas:</label>
-                <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="border p-1 rounded">{Object.keys(WALI_KELAS_MAP).map(c => <option key={c} value={c}>{c}</option>)}</select>
-                <button onClick={() => window.print()} className="ml-auto bg-blue-600 text-white px-4 py-1 rounded flex gap-2"><Printer size={16}/> Print</button>
-              </div>
-              <div className="print-area">
-                 <div className="text-center border-b-2 border-black pb-4 mb-4 hidden print:block">
-                   <h3 className="font-bold text-lg">KEMENTERIAN AGAMA RI - MTsN 3 KOTA TASIKMALAYA</h3>
-                 </div>
-                 <h3 className="text-center font-bold mb-4 uppercase">Rekap Absensi Ramadhan ({getFormattedDate(new Date(currentDate))}) - Kelas {selectedClass}</h3>
-                 <table className="w-full border-collapse border border-black text-sm">
-                   <thead>
-                     <tr className="bg-gray-200">
-                       <th className="border border-black p-2" style={{width: '5%'}}>No</th>
-                       <th className="border border-black p-2" style={{width: '45%'}}>Nama</th>
-                       <th className="border border-black p-2" style={{width: '20%'}}>Status</th>
-                       <th className="border border-black p-2" style={{width: '30%'}}>Petugas</th> {/* UPDATE: Tambah Petugas */}
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {STUDENTS.filter(s => s.class === selectedClass).map((s, i) => {
-                        const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
+            <div className="mb-4 relative group">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input type="text" className="w-full border p-3 pl-10 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Cari Siswa..." value={manualSearch} onChange={e => setManualSearch(e.target.value)} />
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="bg-gray-50"><tr className="text-left text-gray-600"><th className="p-3">Nama</th><th className="p-3">Kls</th><th className="p-3">Status</th></tr></thead>
+                  <tbody className="divide-y">
+                    {manualStudents.slice(0,50).map(s => {
+                        const st = getStatus(s.id, currentDate);
+                        const isRec = data.some(d => d.date === currentDate && d.studentId === s.id);
                         return (
-                          <tr key={s.id}>
-                            <td className="border border-black p-1 text-center">{i+1}</td>
-                            <td className="border border-black p-1">{s.name}</td>
-                            <td className="border border-black p-1 text-center">{getStatus(s.id, currentDate)}</td>
-                            <td className="border border-black p-1 text-center">{rec?.officer || '-'}</td> {/* UPDATE: Isi Petugas */}
-                          </tr>
+                            <tr key={s.id} className="hover:bg-purple-50/30">
+                                <td className="p-3 font-medium">{s.name}</td><td className="p-3">{s.class}</td>
+                                <td className="p-3 flex gap-1">
+                                    {['Hadir', 'Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
+                                        <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 border rounded text-xs transition-all ${st === status ? 'bg-purple-600 text-white border-purple-600' : ''} ${isRec && st !== status ? 'opacity-30 cursor-not-allowed' : 'hover:bg-purple-100'}`}>{status}</button>
+                                    ))}
+                                </td>
+                            </tr>
                         )
-                     })}
-                   </tbody>
-                 </table>
-              </div>
+                    })}
+                  </tbody>
+                </table>
+            </div>
           </div>
         )}
 
-        {/* --- REKAP RANGE/MINGGUAN RAMADHAN --- */}
-        {tab === 'rekap-range' && isPrivileged && (
-          <div>
-            <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded border">
-              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-              <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-              <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
-              <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAllRamadhan" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAllRamadhan" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
-              <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print</button>
-            </div>
-            
-            <div className="print-area">
-               {classesToPrint.map((className) => {
-                 const classStudents = STUDENTS.filter(s => s.class === className);
-                 const wk = WALI_KELAS_MAP[className];
-                 return (
-                   <div key={className} className="page-break mb-10">
-                      <div className="text-center border-b-2 border-black pb-4 mb-4 hidden print:block">
-                        <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
-                        <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
-                      </div>
-                      <h3 className="text-center font-bold text-lg mb-1 uppercase">Rekap Absensi Ramadhan</h3>
-                      <p className="text-center text-sm mb-4">Periode: {getShortDate(startDate)} s.d {getShortDate(endDate)}</p>
-                      <p className="font-bold mb-2">Kelas: {className}</p>
-
-                      <table className="w-full border-collapse border border-black text-sm">
-                        <thead>
-                          <tr className="bg-gray-200">
-                            <th className="border border-black p-2" style={{width: '5%'}}>No</th>
-                            <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th> {/* UPDATE: Lebar proporsional */}
-                            <th className="border border-black p-2" style={{width: '13%'}}>Hadir</th>
-                            <th className="border border-black p-2" style={{width: '13%'}}>Sakit</th>
-                            <th className="border border-black p-2" style={{width: '13%'}}>Izin</th>
-                            <th className="border border-black p-2" style={{width: '16%'}}>Alfa</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {classStudents.map((s, idx) => {
-                             const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
-                             data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
-                             return (
-                               <tr key={s.id}>
-                                 <td className="border border-black p-1 text-center">{idx+1}</td>
-                                 <td className="border border-black p-1">{s.name}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Hadir}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Sakit}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Izin}</td>
-                                 <td className="border border-black p-1 text-center font-bold text-red-600">{stats.Alfa}</td>
-                               </tr>
-                             )
-                          })}
-                        </tbody>
-                      </table>
-
-                      <div className="mt-8 flex justify-end" style={{ pageBreakInside: 'avoid' }}>
-                        <div className="text-center w-64">
-                          <p>Tasikmalaya, {getTitimangsa(new Date())}</p>
-                          <p>Wali Kelas {className}</p>
-                          <br /><br /><br />
-                          <p className="font-bold underline whitespace-nowrap">{wk.name}</p>
-                          <p>NIP. {wk.nip}</p>
+        {/* REKAP HARIAN RAMADHAN - FULL RENDER LOGIC */}
+        {tab === 'rekap-harian' && isPrivileged && (
+             <div className="animate-fade-in-up w-full">
+                 <div className="flex gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
+                    <label className="font-bold text-gray-700">Kelas:</label>
+                    <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="border p-1 rounded">{Object.keys(WALI_KELAS_MAP).map(c => <option key={c} value={c}>{c}</option>)}</select>
+                    <button onClick={() => window.print()} className="ml-auto bg-blue-600 text-white px-4 py-1 rounded flex gap-2"><Printer size={16}/> Print</button>
+                 </div>
+                 
+                 {/* PREVIEW WRAPPER */}
+                 <div className="preview-wrapper">
+                    <div className="sheet">
+                        <div className="text-center border-b-2 border-black pb-4 mb-4">
+                           <h3 className="font-bold text-lg">KEMENTERIAN AGAMA RI - MTsN 3 KOTA TASIKMALAYA</h3>
                         </div>
-                      </div>
-                   </div>
-                 );
-               })}
-            </div>
-          </div>
+                        <h3 className="text-center font-bold mb-4 uppercase">Rekap Absensi Ramadhan ({getFormattedDate(new Date(currentDate))})</h3>
+                        <p className="text-center font-bold mb-2">Kelas: {selectedClass}</p>
+                        <table className="w-full border-collapse border border-black text-sm">
+                          <thead>
+                            <tr className="bg-gray-200">
+                              <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                              <th className="border border-black p-2" style={{width: '45%'}}>Nama</th>
+                              <th className="border border-black p-2" style={{width: '20%'}}>Status</th>
+                              <th className="border border-black p-2" style={{width: '30%'}}>Petugas</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {STUDENTS.filter(s => s.class === selectedClass).map((s, i) => {
+                              const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
+                              return (
+                                <tr key={s.id}>
+                                  <td className="border border-black p-1 text-center">{i+1}</td>
+                                  <td className="border border-black p-1">{s.name}</td>
+                                  <td className="border border-black p-1 text-center">{getStatus(s.id, currentDate)}</td>
+                                  <td className="border border-black p-1 text-center">{rec?.officer || '-'}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                    </div>
+                 </div>
+             </div>
+        )}
+
+        {/* REKAP RANGE RAMADHAN - FULL RENDER LOGIC */}
+        {tab === 'rekap-range' && isPrivileged && (
+             <div className="animate-fade-in-up w-full">
+                 <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
+                    <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                    <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                    <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
+                    <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAllRamadhan" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAllRamadhan" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
+                    <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
+                 </div>
+                 
+                 {/* PREVIEW WRAPPER */}
+                 <div className="preview-wrapper">
+                    {classesToPrint.map((className) => {
+                       const classStudents = STUDENTS.filter(s => s.class === className);
+                       const wk = WALI_KELAS_MAP[className];
+                       return (
+                         <div key={className} className="sheet">
+                            <div className="text-center border-b-2 border-black pb-4 mb-4">
+                              <h3 className="font-bold text-lg uppercase">Kementerian Agama Republik Indonesia</h3>
+                              <h2 className="font-bold text-xl uppercase">MTs Negeri 3 Kota Tasikmalaya</h2>
+                            </div>
+                            <h3 className="text-center font-bold text-lg mb-1 uppercase">Rekap Absensi Ramadhan</h3>
+                            <p className="text-center text-sm mb-4">Periode: {getShortDate(startDate)} s.d {getShortDate(endDate)}</p>
+                            <p className="font-bold mb-2">Kelas: {className}</p>
+
+                            <table className="w-full border-collapse border border-black text-sm">
+                              <thead>
+                                <tr className="bg-gray-200">
+                                  <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                                  <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
+                                  <th className="border border-black p-2" style={{width: '13%'}}>Hadir</th>
+                                  <th className="border border-black p-2" style={{width: '13%'}}>Sakit</th>
+                                  <th className="border border-black p-2" style={{width: '13%'}}>Izin</th>
+                                  <th className="border border-black p-2" style={{width: '16%'}}>Alfa</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {classStudents.map((s, idx) => {
+                                   const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                                   data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
+                                   return (
+                                     <tr key={s.id}>
+                                       <td className="border border-black p-1 text-center">{idx+1}</td>
+                                       <td className="border border-black p-1">{s.name}</td>
+                                       <td className="border border-black p-1 text-center">{stats.Hadir}</td>
+                                       <td className="border border-black p-1 text-center">{stats.Sakit}</td>
+                                       <td className="border border-black p-1 text-center">{stats.Izin}</td>
+                                       <td className="border border-black p-1 text-center font-bold text-red-600">{stats.Alfa}</td>
+                                     </tr>
+                                   )
+                                })}
+                              </tbody>
+                            </table>
+
+                            <div className="signature-section mt-8 flex justify-end">
+                              <div className="text-center w-64">
+                                <p>Tasikmalaya, {getTitimangsa(new Date())}</p>
+                                <p>Wali Kelas {className}</p>
+                                <br /><br /><br />
+                                <p className="font-bold underline whitespace-nowrap">{wk.name}</p>
+                                <p>NIP. {wk.nip}</p>
+                              </div>
+                            </div>
+                         </div>
+                       );
+                    })}
+                 </div>
+             </div>
         )}
         
+        {/* ... Tab settings ... */}
         {tab === 'settings' && isPrivileged && (
-          <div><h3 className="font-bold mb-2">Libur Ramadhan</h3><input type="date" id="ramadhanHoliday" className="border p-1 mr-2"/><button onClick={()=>{const v=document.getElementById('ramadhanHoliday').value; if(v) setHolidays([...holidays, v])}} className="bg-red-600 text-white px-4 py-1 rounded">Tambah</button>
-          <ul className="mt-2 list-disc pl-5">{holidays.map(h => <li key={h}>{getFormattedDate(new Date(h))}</li>)}</ul></div>
+          <div><h3 className="font-bold mb-2">Libur Ramadhan</h3><div className="flex gap-2"><input type="date" id="ramadhanHoliday" className="border p-2 rounded"/><button onClick={()=>{const v=document.getElementById('ramadhanHoliday').value; if(v) {setHolidays([...holidays, v]); addToast('success','Disimpan','Jadwal libur ditambahkan')}}} className="bg-purple-600 text-white px-4 py-2 rounded">Tambah</button></div>
+          <ul className="mt-4 list-disc pl-5">{holidays.map(h => <li key={h} className="text-purple-700">{getFormattedDate(new Date(h))}</li>)}</ul></div>
         )}
       </div>
     </div>
@@ -1828,67 +2051,97 @@ const CoverPage = ({ user, month, year }) => {
     </div>
   );
 };
-const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
+// --- 2. KOMPONEN LCKH MANAGER UTAMA ---
+const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) => {
   const [mode, setMode] = useState('input');
   const [profile, setProfile] = useState(profiles[user.nip] || { golongan: 'III.a' });
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [activity, setActivity] = useState('');
-  const [desc, setDesc] = useState('');
-  const [volume, setVolume] = useState(1);
-  const [unit, setUnit] = useState('');
-  const [editingId, setEditingId] = useState(null); 
+  
+  // State untuk Input Baru
+  const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
+  const [inputActivity, setInputActivity] = useState('');
+  const [inputDesc, setInputDesc] = useState('');
+  const [inputVolume, setInputVolume] = useState(1);
+  const [inputUnit, setInputUnit] = useState('');
+
+  // State untuk Modal Edit (Pop-up)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  // State Cetak
   const [printMonth, setPrintMonth] = useState(new Date().getMonth());
   const [printYear, setPrintYear] = useState(new Date().getFullYear());
 
+  const activityList = user.nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST;
+
+  // Auto-set unit saat input baru berubah
   useEffect(() => {
-    const list = user.nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST;
-    const act = list.find(a => a.name === activity);
-    if (act) setUnit(act.unit);
-  }, [activity, user.nip]);
+    // Pastikan activityList ada isinya sebelum mencari
+    if (!activityList) return;
 
-  const handleProfileSave = () => { setProfiles({ ...profiles, [user.nip]: profile }); alert('Profil disimpan!'); };
+    const act = activityList.find(a => a.name === inputActivity);
+    if (act) setInputUnit(act.unit);
+    
+    // HAPUS 'activityList' dari array di bawah ini
+  }, [inputActivity]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const newRecord = { user_nip: user.nip, date, activity, volume, unit, description: desc };
-
-    if (editingId) {
-      const { error } = await supabase.from('lckh').update(newRecord).eq('id', editingId);
-      if (!error) {
-        setData(data.map(item => item.id === editingId ? { ...item, ...newRecord, desc: desc } : item));
-        setEditingId(null);
-      }
-    } else {
-      const { data: inserted, error } = await supabase.from('lckh').insert([newRecord]).select();
-      if (!error && inserted) {
-        setData([...data, { ...inserted[0], userId: inserted[0].user_nip, desc: inserted[0].description }]);
-        alert('LCKH tersimpan di Cloud!');
-      }
-    }
-    setActivity(''); setDesc('');
+  // Simpan Profil
+  const handleProfileSave = () => { 
+      setProfiles({ ...profiles, [user.nip]: profile }); 
+      addToast('success', 'Profil Tersimpan', 'Data golongan dan jabatan berhasil diperbarui.');
   };
 
-  const handleEdit = (item) => {
-    setEditingId(item.id);
-    setDate(item.date); setActivity(item.activity); setDesc(item.desc); setVolume(item.volume); setUnit(item.unit);
-    setMode('input');
-    window.scrollTo(0,0);
+  // Submit Input Baru
+  const handleInputSubmit = async (e) => {
+    e.preventDefault();
+    const newRecord = { user_nip: user.nip, date: inputDate, activity: inputActivity, volume: inputVolume, unit: inputUnit, description: inputDesc };
+    
+    const { data: inserted, error } = await supabase.from('lckh').insert([newRecord]).select();
+    if (!error && inserted) {
+      setData([...data, { ...inserted[0], userId: inserted[0].user_nip, desc: inserted[0].description }]);
+      addToast('success', 'Data Tersimpan', 'Laporan kinerja harian berhasil ditambahkan.');
+      // Reset form
+      setInputActivity(''); setInputDesc(''); setInputVolume(1);
+    } else {
+      addToast('error', 'Gagal Simpan', 'Terjadi kesalahan saat menyimpan data.');
+    }
+  };
+
+  // --- LOGIKA EDIT POP-UP ---
+  const handleEditClick = (item) => {
+    setEditingItem(item); // Set data yang mau diedit
+    setIsEditModalOpen(true); // Buka Modal
+  };
+
+  const handleEditSave = async (updatedData) => {
+    const { error } = await supabase.from('lckh').update({
+        date: updatedData.date, activity: updatedData.activity, description: updatedData.desc, volume: updatedData.volume, unit: updatedData.unit
+    }).eq('id', updatedData.id);
+
+    if (!error) {
+        setData(data.map(item => item.id === updatedData.id ? updatedData : item));
+        setIsEditModalOpen(false);
+        setEditingItem(null);
+        addToast('success', 'Update Berhasil', 'Data LCKH berhasil diperbarui.');
+    } else {
+        addToast('error', 'Update Gagal', 'Gagal memperbarui data di server.');
+    }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Hapus data LCKH ini?')) {
       const { error } = await supabase.from('lckh').delete().eq('id', id);
-      if (!error) setData(data.filter(i => i.id !== id));
+      if (!error) {
+          setData(data.filter(i => i.id !== id));
+          addToast('info', 'Terhapus', 'Data LCKH telah dihapus.');
+      }
     }
   };
 
   const userRank = GOLONGAN_MAP[profile.golongan] || {};
-  
-  // Filter & Sort Data
   const filteredData = data.filter(d => d.userId === user.nip && new Date(d.date).getMonth() === printMonth && new Date(d.date).getFullYear() === printYear);
-  const sortedData = [...filteredData].sort((a, b) => new Date(a.date) - new Date(b.date)); 
+  const sortedData = [...filteredData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // Group Data LKB
+  // --- LOGIKA DATA LKB (Laporan Bulanan) ---
   const lkbData = Object.values(sortedData.reduce((acc, curr) => {
     if (!acc[curr.activity]) acc[curr.activity] = { ...curr, volume: 0, doc: getDocName(curr.activity, user.nip) };
     acc[curr.activity].volume += parseInt(curr.volume);
@@ -1897,113 +2150,106 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
 
   return (
     <div className="space-y-6">
-      {/* Tombol Navigasi Utama */}
-      <div className="flex justify-between items-center no-print">
-         <h2 className="text-xl font-bold flex items-center gap-2"><ClipboardList /> LCKH & LKB</h2>
-         <div className="flex gap-2">
-           <button onClick={() => setMode('input')} className={`px-4 py-2 rounded ${mode === 'input' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Input</button>
-           <button onClick={() => setMode('print-view')} className={`px-4 py-2 rounded ${mode === 'print-view' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>Cetak</button>
+      {/* Tombol Navigasi */}
+      <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
+         <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><ClipboardList className="text-green-600"/> LCKH & LKB</h2>
+         <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+           <button onClick={() => setMode('input')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'input' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Input Data</button>
+           <button onClick={() => setMode('print-view')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${mode === 'print-view' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Cetak Laporan</button>
          </div>
       </div>
 
       {mode === 'input' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in-up">
+          {/* ... (Konten Mode Input SAMA SEPERTI SEBELUMNYA, tidak perlu diubah) ... */}
+          {/* ... Pastikan tabel riwayat dan form input tetap ada di sini ... */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Panel Kiri: Profil */}
-            <div className="bg-white p-4 rounded shadow h-fit">
-              <h3 className="font-bold border-b pb-2 mb-4 text-green-700">Profil</h3>
-              <div className="space-y-3">
-                <div><label className="text-sm">Nama</label><input value={user.name} disabled className="w-full bg-gray-100 border p-2 rounded text-sm" /></div>
-                <div><label className="text-sm">Golongan</label><select value={profile.golongan} onChange={e => setProfile({...profile, golongan: e.target.value})} className="w-full border p-2 rounded">{Object.keys(GOLONGAN_MAP).map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                <div className="text-xs bg-gray-50 p-2"><p>Pangkat: {userRank.pangkat}</p><p>Jabatan: {userRank.jabatan}</p></div>
-                <button onClick={handleProfileSave} className="w-full bg-blue-600 text-white py-1 rounded text-sm flex items-center justify-center gap-1"><Save size={14}/> Simpan</button>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+              <h3 className="font-bold border-b pb-3 mb-4 text-gray-700 flex items-center gap-2"><User size={18}/> Profil Pegawai</h3>
+              <div className="space-y-4">
+                <div><label className="text-xs text-gray-500 uppercase font-bold">Nama</label><div className="font-medium text-gray-800">{user.name}</div></div>
+                <div><label className="text-xs text-gray-500 uppercase font-bold">Golongan</label><select value={profile.golongan} onChange={e => setProfile({...profile, golongan: e.target.value})} className="w-full border p-2 rounded mt-1 bg-gray-50 text-sm">{Object.keys(GOLONGAN_MAP).map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+                <div className="text-xs bg-green-50 p-3 rounded text-green-800 border border-green-100"><p><span className="font-bold">Pangkat:</span> {userRank.pangkat}</p><p><span className="font-bold">Jabatan:</span> {userRank.jabatan}</p></div>
+                <button onClick={handleProfileSave} className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"><Save size={16}/> Simpan Profil</button>
               </div>
             </div>
 
-            {/* Panel Tengah: Form Input */}
-            <div className="md:col-span-2 bg-white p-4 rounded shadow">
-              <h3 className="font-bold border-b pb-2 mb-4 text-green-700">{editingId ? 'Edit' : 'Input'}</h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="font-bold border-b pb-3 mb-4 text-gray-700 flex items-center gap-2"><Save size={18}/> Input Kinerja Harian</h3>
+              <form onSubmit={handleInputSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="text-sm">Tanggal</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full border p-2 rounded" required /></div>
-                    <div><label className="text-sm">Kegiatan</label><select value={activity} onChange={e => setActivity(e.target.value)} className="w-full border p-2 rounded text-sm" required><option value="">-- Pilih --</option>{(user.nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST).map((a, i) => <option key={i} value={a.name}>{a.name}</option>)}</select></div>
+                    <div><label className="text-sm font-medium mb-1 block">Tanggal</label><input type="date" value={inputDate} onChange={e => setInputDate(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" required /></div>
+                    <div><label className="text-sm font-medium mb-1 block">Kegiatan</label><select value={inputActivity} onChange={e => setInputActivity(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" required><option value="">-- Pilih Kegiatan --</option>{activityList.map((a, i) => <option key={i} value={a.name}>{a.name}</option>)}</select></div>
                   </div>
-                  <div><label className="text-sm">Uraian</label><textarea value={desc} onChange={e => setDesc(e.target.value)} rows="2" className="w-full border p-2 rounded" required></textarea></div>
+                  <div><label className="text-sm font-medium mb-1 block">Uraian Kegiatan</label><textarea value={inputDesc} onChange={e => setInputDesc(e.target.value)} rows="2" className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" placeholder="Deskripsikan output kegiatan..." required></textarea></div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-sm">Volume</label><input type="number" min="1" value={volume} onChange={e => setVolume(e.target.value)} className="w-full border p-2 rounded" required /></div>
-                    <div><label className="text-sm">Satuan</label><input value={unit} readOnly className="w-full bg-gray-100 border p-2 rounded" /></div>
+                    <div><label className="text-sm font-medium mb-1 block">Volume</label><input type="number" min="1" value={inputVolume} onChange={e => setInputVolume(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg" required /></div>
+                    <div><label className="text-sm font-medium mb-1 block">Satuan</label><input value={inputUnit} readOnly className="w-full bg-gray-100 border border-gray-300 p-2.5 rounded-lg text-gray-500" /></div>
                   </div>
-                  <div className="flex gap-2">
-                    <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded">{editingId ? 'Update' : 'Simpan'}</button>
-                    {editingId && <button type="button" onClick={() => { setEditingId(null); setActivity(''); setDesc(''); }} className="bg-gray-400 text-white px-4 rounded">Batal</button>}
+                  <div className="pt-2">
+                    <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-md transition-all flex items-center gap-2"><Save size={18}/> Simpan Laporan</button>
                   </div>
               </form>
             </div>
           </div>
           
-          {/* Tabel Input Preview */}
-          <div className="bg-white p-4 rounded shadow">
-             <div className="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-2 gap-2">
-                <h3 className="font-bold text-gray-700">Riwayat Input</h3>
-                <div className="flex gap-2 items-center">
-                   <span className="text-sm text-gray-500">Filter:</span>
-                   <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-1 rounded text-sm bg-gray-50">
-                      {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                   </select>
-                   <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-1 rounded text-sm bg-gray-50">
-                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                   </select>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h3 className="font-bold text-gray-700 text-lg">Riwayat Input</h3>
+                <div className="flex gap-3 items-center bg-gray-50 p-2 rounded-lg border border-gray-200">
+                   <span className="text-xs font-bold text-gray-500 uppercase">Filter:</span>
+                   <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="bg-white border p-1.5 rounded text-sm focus:ring-1 focus:ring-green-500 outline-none">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+                   <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="bg-white border p-1.5 rounded text-sm focus:ring-1 focus:ring-green-500 outline-none">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
                 </div>
              </div>
 
-             <table className="w-full text-sm border-collapse">
-               <thead>
-                 <tr className="bg-green-50 text-left">
-                   <th className="p-3 border-b">Tgl</th>
-                   <th className="p-3 border-b">Kegiatan</th>
-                   <th className="p-3 border-b">Uraian</th>
-                   <th className="p-3 border-b">Vol</th>
-                   <th className="p-3 border-b">Aksi</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {sortedData.length === 0 ? (
+             <div className="overflow-x-auto rounded-lg border border-gray-200">
+               <table className="w-full text-sm">
+                 <thead className="bg-gray-50">
                    <tr>
-                     <td colSpan="5" className="p-8 text-center text-gray-500 italic">
-                       Tidak ada data di bulan {MONTHS[printMonth]} {printYear}.
-                     </td>
+                     <th className="p-3 text-left font-semibold text-gray-600 border-none">Tgl</th>
+                     <th className="p-3 text-left font-semibold text-gray-600 border-none">Kegiatan</th>
+                     <th className="p-3 text-left font-semibold text-gray-600 border-none">Uraian</th>
+                     <th className="p-3 text-left font-semibold text-gray-600 border-none">Vol</th>
+                     <th className="p-3 text-left font-semibold text-gray-600 border-none">Aksi</th>
                    </tr>
-                 ) : sortedData.map(i => (
-                   <tr key={i.id} className="border-b hover:bg-gray-50 transition-colors">
-                     <td className="p-3 whitespace-nowrap">{getShortDate(i.date)}</td>
-                     <td className="p-3 font-medium">{i.activity}</td>
-                     <td className="p-3 text-gray-600 italic text-xs">{i.desc}</td>
-                     <td className="p-3 whitespace-nowrap">{i.volume} {i.unit}</td>
-                     <td className="p-3 flex gap-3">
-                       <button onClick={() => handleEdit(i)} className="text-blue-600 hover:text-blue-800" title="Edit"><Edit size={16}/></button>
-                       <button onClick={() => handleDelete(i.id)} className="text-red-600 hover:text-red-800" title="Hapus"><Trash2 size={16}/></button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                   {sortedData.length === 0 ? (
+                     <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">Belum ada data untuk periode ini.</td></tr>
+                   ) : sortedData.map(i => (
+                     <tr key={i.id} className="hover:bg-green-50/50 transition-colors">
+                       <td className="p-3 whitespace-nowrap border-none text-gray-500">{getShortDate(i.date)}</td>
+                       <td className="p-3 font-medium border-none text-gray-800">{i.activity}</td>
+                       <td className="p-3 text-gray-600 border-none max-w-xs truncate">{i.desc}</td>
+                       <td className="p-3 whitespace-nowrap border-none text-gray-500">{i.volume} {i.unit}</td>
+                       <td className="p-3 border-none">
+                         <div className="flex gap-2">
+                           <button onClick={() => handleEditClick(i)} className="p-1.5 text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors" title="Edit"><Edit size={16}/></button>
+                           <button onClick={() => handleDelete(i.id)} className="p-1.5 text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors" title="Hapus"><Trash2 size={16}/></button>
+                         </div>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
           </div>
         </div>
       )}
 
+      {/* Mode Cetak */}
       {mode === 'print-view' && (
         <div className="w-full">
-           <div className="no-print p-4 bg-white shadow mb-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border">
+           <div className="no-print bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex justify-between items-center">
              <div className="flex gap-4 items-center">
-               <label className="font-bold text-gray-700">Periode:</label>
-               <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded-md bg-gray-50 text-sm">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-               <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded-md bg-gray-50 text-sm">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
+               <span className="font-bold text-gray-700">Preview Laporan:</span>
+               <div className="flex gap-2">
+                 <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+                 <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
+               </div>
              </div>
-             <div className="flex gap-2">
-                <button onClick={() => window.print()} className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md font-bold text-sm">
-                  <Printer size={18}/> Cetak PDF
-                </button>
-             </div>
+             <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md font-bold text-sm transition-all"><Printer size={18}/> Cetak Dokumen</button>
            </div>
            
            <div className="preview-wrapper">
@@ -2059,8 +2305,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                 }
                 return chunks.map((chunk, pageIndex) => (
                    <div key={pageIndex} className="sheet">
-                      
-                      {/* PERBAIKAN: Header & Identitas HANYA MUNCUL DI HALAMAN PERTAMA (pageIndex === 0) */}
                       {pageIndex === 0 && (
                         <ReportHeader 
                           title="LAPORAN CAPAIAN KINERJA HARIAN (LCKH)" 
@@ -2070,10 +2314,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                           year={printYear} 
                         />
                       )}
-                      
-                      {/* Indikator halaman */}
                       {chunks.length > 1 && (<p className="text-right text-xs italic mb-1">Halaman {pageIndex + 1} dari {chunks.length}</p>)}
-                      
                       <table>
                         <thead>
                           <tr>
@@ -2102,8 +2343,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
                           )}
                         </tbody>
                       </table>
-
-                      {/* Tanda Tangan HANYA di halaman terakhir */}
                       {pageIndex === chunks.length - 1 && (
                         <div className="signature-section">
                            <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
@@ -2114,6 +2353,17 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles }) => {
              })()}
            </div>
         </div>
+      )}
+
+      {/* MODAL EDIT DITEMPATKAN DI SINI (Di luar kondisi mode input/print) */}
+      {isEditModalOpen && (
+        <ModalEditLCKH 
+          onClose={() => setIsEditModalOpen(false)} 
+          data={editingItem} 
+          onSave={handleEditSave}
+          activityList={activityList}
+          nip={user.nip}
+        />
       )}
     </div>
   );
@@ -2170,6 +2420,15 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  // Toast Function
+  const addToast = (type, title, message) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
+  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   // ... (State & Effect Code sama persis, tidak perlu diubah) ...
   // Global State
@@ -2288,49 +2547,103 @@ const App = () => {
       const userSession = { ...teacher, role: teacher.role || 'teacher' };
       setCurrentUser(userSession); 
       localStorage.setItem('currentUser', JSON.stringify(userSession));
-      setView('dashboard'); return; 
+      setView('dashboard'); 
+      addToast('success', 'Login Berhasil', `Selamat datang kembali, ${teacher.name}!`);
+      return; 
     }
     const staff = STAFF_ACCOUNTS.find(s => s.nisn === identifier && password === s.pass);
     if (staff) { 
       const userSession = { ...staff, role: 'staff' };
       setCurrentUser(userSession); 
       localStorage.setItem('currentUser', JSON.stringify(userSession));
-      setView('dashboard'); return; 
+      setView('dashboard'); 
+      addToast('success', 'Login Berhasil', `Selamat datang, ${staff.name}!`);
+      return; 
     }
-    alert('Login Gagal! NIP/NISN atau Password salah.');
+    addToast('error', 'Login Gagal', 'NIP/NISN atau Password salah.');
   };
 
-  const logout = () => { setCurrentUser(null); localStorage.removeItem('currentUser'); setView('login'); setIsMobileMenuOpen(false); };
-  const handleSetView = (newView) => { setView(newView); setIsMobileMenuOpen(false); };
+  const logout = () => { 
+    setCurrentUser(null); 
+    localStorage.removeItem('currentUser'); 
+    setView('login'); 
+    addToast('info', 'Logout', 'Anda telah keluar dari aplikasi.');
+  };
 
-  if (view === 'login') return <LoginScreen onLogin={handleLogin} />;
+  if (view === 'login') return (
+    <>
+      <style>{styles}</style>
+      <ToastNotification toasts={toasts} removeToast={removeToast} />
+      <LoginScreen onLogin={handleLogin} />
+    </>
+  );
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-slate-800 font-sans flex-col md:flex-row app-layout">
       <style>{styles}</style>
-      <div className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center no-print sticky top-0 z-50 shadow-md">
-         <span className="font-bold text-lg">MTsN 3 Tasikmalaya</span>
-         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2"><Menu size={24} /></button>
+      <ToastNotification toasts={toasts} removeToast={removeToast} />
+      
+      {/* Mobile Header */}
+      <div className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center no-print sticky top-0 z-40 shadow-md">
+         <div className="flex items-center gap-2">
+            <Image src="/logo kemenag.png" width={30} height={30} alt="Logo" />
+            <span className="font-bold text-sm">MTsN 3 Tasikmalaya</span>
+         </div>
+         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 active:scale-95 transition-transform"><Menu size={24} /></button>
       </div>
+
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="bg-green-900 w-64 h-full shadow-lg" onClick={e => e.stopPropagation()}>
-             <SidebarContent user={currentUser} currentView={view} setView={handleSetView} logout={logout} />
+        <div className="fixed inset-0 z-50 bg-black/50 md:hidden animate-fade-in-up" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="bg-green-900 w-72 h-full shadow-2xl" onClick={e => e.stopPropagation()}>
+             <SidebarContent user={currentUser} currentView={view} setView={(v)=>{setView(v);setIsMobileMenuOpen(false)}} logout={logout} />
           </div>
         </div>
       )}
-      <div className="hidden md:flex w-64 flex-col no-print h-screen sticky top-0">
+
+      <div className="hidden md:flex w-72 flex-col no-print h-screen sticky top-0 z-30">
          <SidebarContent user={currentUser} currentView={view} setView={setView} logout={logout} />
       </div>
-      {/* PERBAIKAN DISINI: HAPUS CLASS 'print-container' 
-         Class ini sekarang hanya untuk @media print di CSS 
-      */}
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto w-full">
+
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-gray-50/50">
         {view === 'dashboard' && <Dashboard user={currentUser} />}
-        {view === 'absen-berjamaah' && <AbsenBerjamaah user={currentUser} data={attendanceData} setData={setAttendanceData} holidays={holidays} setHolidays={setHolidays} />}
-        {view === 'absen-kesiangan' && <AbsenKesiangan user={currentUser} data={lateData} setData={setLateData} />}
-        {view === 'absen-ramadhan' && <AbsenRamadhan user={currentUser} data={ramadhanData} setData={setRamadhanData} holidays={holidays} setHolidays={setHolidays} />}
-        {view === 'lckh' && <LCKHManager user={currentUser} data={lckhData} setData={setLckhData} profiles={userProfiles} setProfiles={setUserProfiles} />}
+        {view === 'absen-berjamaah' && (
+            <AbsenBerjamaah 
+                user={currentUser} 
+                data={attendanceData} 
+                setData={setAttendanceData} 
+                holidays={holidays} 
+                setHolidays={setHolidays} 
+                addToast={addToast} // <- PASS PROP INI
+            />
+        )}
+        {view === 'absen-kesiangan' && (
+            <AbsenKesiangan 
+                user={currentUser} 
+                data={lateData} 
+                setData={setLateData} 
+                addToast={addToast} // <- PASS PROP INI
+            />
+        )}
+        {view === 'absen-ramadhan' && (
+            <AbsenRamadhan 
+                user={currentUser} 
+                data={ramadhanData} 
+                setData={setRamadhanData} 
+                holidays={holidays} 
+                setHolidays={setHolidays} 
+                addToast={addToast} // <- PASS PROP INI
+            />
+        )}
+        {view === 'lckh' && (
+            <LCKHManager 
+                user={currentUser} 
+                data={lckhData} 
+                setData={setLckhData} 
+                profiles={userProfiles} 
+                setProfiles={setUserProfiles} 
+                addToast={addToast} 
+            />
+        )}
       </main>
     </div>
   );
