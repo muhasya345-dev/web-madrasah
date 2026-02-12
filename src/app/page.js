@@ -2373,34 +2373,59 @@ const SignatureSection = ({ user, rank, month, year }) => {
 };
 
 const UserManagement = ({ users, setUsers, addToast }) => {
-  // Default role adalah 'teacher'
   const [formData, setFormData] = useState({ name: '', nip: '', role: 'teacher', password: '' });
   const [isEditing, setIsEditing] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Helper untuk menentukan label ID berdasarkan Role
-  const getIdLabel = (role) => {
-      return role === 'staff' ? 'NISN (Nomor Induk Siswa)' : 'NIP / Username';
+  const getIdLabel = (role) => role === 'staff' ? 'NISN (Nomor Induk Siswa)' : 'NIP / Username';
+
+  // --- CRUD KE SUPABASE ---
+  
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from('users').select('*').order('role');
+    if (!error) setUsers(data);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const idLabel = getIdLabel(formData.role);
+    setIsLoading(true);
+
+    // Cek duplikasi NIP lokal (untuk UX cepat)
+    if (!isEditing && users.find(u => u.nip === formData.nip)) {
+        addToast('error', 'Gagal', 'NIP/NISN ini sudah terdaftar.');
+        setIsLoading(false);
+        return;
+    }
 
     if (isEditing) {
-      setUsers(users.map(u => u.id === isEditing ? { ...u, ...formData, id: u.id } : u));
-      addToast('success', 'Berhasil', 'Data pengguna diperbarui.');
-      setIsEditing(null);
-    } else {
-      // Cek apakah NIP/NISN sudah ada
-      if (users.find(u => u.nip === formData.nip)) {
-        addToast('error', 'Gagal', `${idLabel} sudah terdaftar.`);
-        return;
+      // UPDATE KE SUPABASE
+      const { error } = await supabase.from('users').update({
+        name: formData.name, nip: formData.nip, role: formData.role, password: formData.password
+      }).eq('id', isEditing);
+
+      if (!error) {
+        addToast('success', 'Berhasil', 'Data pengguna diperbarui.');
+        fetchUsers(); // Refresh list
+        setIsEditing(null);
+        setFormData({ name: '', nip: '', role: 'teacher', password: '' });
+      } else {
+        addToast('error', 'Gagal', 'Gagal update database.');
       }
-      setUsers([...users, { ...formData, id: Date.now() }]);
-      addToast('success', 'Berhasil', 'Pengguna baru ditambahkan.');
+    } else {
+      // INSERT KE SUPABASE
+      const { error } = await supabase.from('users').insert([{
+        name: formData.name, nip: formData.nip, role: formData.role, password: formData.password
+      }]);
+
+      if (!error) {
+        addToast('success', 'Berhasil', 'Pengguna baru ditambahkan.');
+        fetchUsers(); // Refresh list
+        setFormData({ name: '', nip: '', role: 'teacher', password: '' });
+      } else {
+        addToast('error', 'Gagal', 'Gagal menyimpan ke database.');
+      }
     }
-    // Reset form ke default
-    setFormData({ name: '', nip: '', role: 'teacher', password: '' });
+    setIsLoading(false);
   };
 
   const handleEdit = (user) => {
@@ -2408,10 +2433,15 @@ const UserManagement = ({ users, setUsers, addToast }) => {
     setIsEditing(user.id);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Hapus pengguna ini?')) {
-      setUsers(users.filter(u => u.id !== id));
-      addToast('info', 'Dihapus', 'Pengguna telah dihapus.');
+  const handleDelete = async (id) => {
+    if (window.confirm('Hapus pengguna ini secara permanen?')) {
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (!error) {
+        addToast('info', 'Dihapus', 'Pengguna telah dihapus.');
+        setUsers(users.filter(u => u.id !== id));
+      } else {
+        addToast('error', 'Gagal', 'Gagal menghapus data.');
+      }
     }
   };
 
@@ -2423,52 +2453,22 @@ const UserManagement = ({ users, setUsers, addToast }) => {
         </h3>
         
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Pilihan Role dipindah ke atas agar user memilih dulu */}
           <div className="md:col-span-2">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipe Pengguna</label>
-            <select 
-                className="w-full border p-2 rounded bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none" 
-                value={formData.role} 
-                onChange={e => setFormData({...formData, role: e.target.value})}
-            >
+            <select className="w-full border p-2 rounded bg-gray-50 outline-none" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                 <option value="admin">Admin (Operator)</option>
                 <option value="headmaster">Kepala Madrasah</option>
                 <option value="teacher">Guru</option>
                 <option value="staff">Petugas Piket (Siswa)</option>
             </select>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Lengkap</label>
-            <input 
-                type="text" placeholder="Contoh: Aldo" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
-                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} 
-            />
-          </div>
-
-          <div>
-            {/* Label Dinamis: Berubah sesuai Role yang dipilih di atas */}
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                {getIdLabel(formData.role)}
-            </label>
-            <input 
-                type="text" 
-                placeholder={formData.role === 'staff' ? "Masukkan NISN..." : "Masukkan NIP..."} 
-                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
-                value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} 
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password Login</label>
-            <input 
-                type="text" placeholder="Password" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required 
-                value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} 
-            />
-          </div>
+          <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nama Lengkap</label><input type="text" className="w-full border p-2 rounded outline-none" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
+          <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">{getIdLabel(formData.role)}</label><input type="text" className="w-full border p-2 rounded outline-none" required value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} /></div>
+          <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password Login</label><input type="text" className="w-full border p-2 rounded outline-none" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
 
           <div className="md:col-span-2 flex gap-2 pt-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full shadow-md font-bold">
+            <button type="submit" disabled={isLoading} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full shadow-md font-bold flex justify-center items-center gap-2">
+                {isLoading && <Loader2 size={16} className="animate-spin"/>}
                 {isEditing ? 'Simpan Perubahan' : 'Tambah User'}
             </button>
             {isEditing && (
@@ -2478,43 +2478,21 @@ const UserManagement = ({ users, setUsers, addToast }) => {
         </form>
       </div>
 
-      {/* Tabel Daftar User */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="font-bold text-lg mb-4 text-gray-800">Daftar Akun Pengguna</h3>
+        <h3 className="font-bold text-lg mb-4 text-gray-800">Database Pengguna (Cloud)</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left border-collapse">
-            <thead className="bg-gray-50 font-bold text-gray-700 border-b">
-              <tr>
-                <th className="p-3">Nama</th>
-                <th className="p-3">Nomor Induk</th>
-                <th className="p-3">Role / Jabatan</th>
-                <th className="p-3">Password</th>
-                <th className="p-3">Aksi</th>
-              </tr>
-            </thead>
+            <thead className="bg-gray-50 font-bold text-gray-700 border-b"><tr><th className="p-3">Nama</th><th className="p-3">Nomor Induk</th><th className="p-3">Role</th><th className="p-3">Password</th><th className="p-3">Aksi</th></tr></thead>
             <tbody className="divide-y">
               {users.map(u => (
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="p-3 font-medium">{u.name}</td>
-                  <td className="p-3 font-mono text-gray-600">
-                    {u.nip} 
-                    {u.role === 'staff' && <span className="text-[10px] text-gray-400 ml-1">(NISN)</span>}
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${
-                        u.role === 'admin' ? 'bg-red-100 text-red-600' : 
-                        u.role === 'headmaster' ? 'bg-purple-100 text-purple-600' : 
-                        u.role === 'staff' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
-                    }`}>
-                        {u.role === 'staff' ? 'Petugas (Siswa)' : u.role}
-                    </span>
-                  </td>
+                  <td className="p-3 font-mono text-gray-600">{u.nip}</td>
+                  <td className="p-3"><span className={`px-2 py-1 rounded text-xs uppercase font-bold ${u.role === 'admin' ? 'bg-red-100 text-red-600' : u.role === 'staff' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{u.role}</span></td>
                   <td className="p-3 font-mono text-gray-400">••••••</td>
                   <td className="p-3 flex gap-2">
-                    <button onClick={() => handleEdit(u)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"><Edit size={16}/></button>
-                    {u.role !== 'admin' && ( 
-                      <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"><Trash2 size={16}/></button>
-                    )}
+                    <button onClick={() => handleEdit(u)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit size={16}/></button>
+                    {u.role !== 'admin' && <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 size={16}/></button>}
                   </td>
                 </tr>
               ))}
@@ -2550,7 +2528,9 @@ const INITIAL_USERS = [
   { id: 4, name: 'Luthfiyana', nip: '1313', role: 'staff', password: '123' },
 ];
 
+// --- APP COMPONENT UTAMA (FULL VERSION) ---
 const App = () => {
+  // 1. DEKLARASI STATE (Urutan Wajib di Atas)
   const [currentUser, setCurrentUser] = useState(null);
   const [view, setView] = useState('login'); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -2559,7 +2539,17 @@ const App = () => {
   // State Manajemen User (Dinamis)
   const [usersList, setUsersList] = useState(INITIAL_USERS);
 
-  // Toast Function
+  // State Data Global Aplikasi
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [lateData, setLateData] = useState([]);
+  const [ramadhanData, setRamadhanData] = useState([]);
+  const [lckhData, setLckhData] = useState([]);
+  const [holidays, setHolidays] = useState(['2024-03-11']);
+  
+  // State Profil (Penyebab error sebelumnya, sekarang aman di sini)
+  const [userProfiles, setUserProfiles] = useState({}); 
+
+  // --- HELPER FUNCTIONS ---
   const addToast = (type, title, message) => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, type, title, message }]);
@@ -2567,90 +2557,69 @@ const App = () => {
   };
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  // Simpan User Data setiap ada perubahan
-  useEffect(() => {
-    localStorage.setItem('appUsers', JSON.stringify(usersList));
-  }, [usersList]);
+  // --- 2. USE EFFECTS (Logic Load & Save) ---
 
-  // ... (State global lain sama seperti sebelumnya: attendanceData, lateData, dll) ...
-  // Paste ulang state Attendance dll di sini jika tertimpa
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [lateData, setLateData] = useState([]);
-  const [ramadhanData, setRamadhanData] = useState([]);
-  const [lckhData, setLckhData] = useState([]);
-  const [holidays, setHolidays] = useState(['2024-03-11']);
-  const [userProfiles, setUserProfiles] = useState({});
-
-  // 1. CEK SESI LOGIN
-// Load User Data & Cek Admin
+  // A. Inisialisasi Aplikasi (Load Sesi Login & Fetch Data Supabase)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUsers = localStorage.getItem('appUsers');
-      
-      if (storedUsers) {
-        const parsedUsers = JSON.parse(storedUsers);
-        
-        // CEK: Apakah akun Admin Utama (Sya'ban) sudah ada di data browser?
-        const adminExists = parsedUsers.find(u => u.nip === '199911222025051007');
-        
-        if (adminExists) {
-          // Jika ada, pakai data dari browser (aman)
-          setUsersList(parsedUsers);
-        } else {
-          // Jika Admin TIDAK ADA (karena cache lama), kita reset/gabungkan
-          console.log("Resetting users to include Admin...");
-          setUsersList(INITIAL_USERS);
-          localStorage.setItem('appUsers', JSON.stringify(INITIAL_USERS));
+    const initApp = async () => {
+      // 1. Cek LocalStorage (Hanya di Client Side)
+      if (typeof window !== 'undefined') {
+        // Cek Login Sesi
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+          setCurrentUser(JSON.parse(savedUser));
+          setView('dashboard');
         }
-      } else {
-        // Jika belum ada data sama sekali, pakai INITIAL_USERS
-        setUsersList(INITIAL_USERS);
+
+        // Cek Cache Data User (Jika Supabase offline/lambat)
+        const storedUsers = localStorage.getItem('appUsers');
+        if (storedUsers) {
+           const parsedUsers = JSON.parse(storedUsers);
+           // Validasi: Pastikan Admin Utama ada
+           const adminExists = parsedUsers.find(u => u.nip === '199911222025051007');
+           if (adminExists) setUsersList(parsedUsers);
+           else setUsersList(INITIAL_USERS);
+        }
+
+        // Cek Cache Profil Golongan
+        const savedProfiles = localStorage.getItem('userProfiles');
+        if (savedProfiles) setUserProfiles(JSON.parse(savedProfiles));
       }
-    }
-  }, []);
 
-  // 2. FUNGSI SINKRONISASI CLOUD (INIT & REALTIME) - AMAN & TERPISAH
-  useEffect(() => {
-    // --- HELPER 1: PENGOLAH DATA ABSENSI (TIDAK DIUBAH LOGIKANYA) ---
-    // Fungsi ini memastikan data absen tetap jalan lancar seperti sebelumnya
-    const normalizeAttendance = (data) => data.map(d => ({ ...d, studentId: d.student_id }));
-    
-    // --- HELPER 2: PENGOLAH DATA LCKH (DIPERBAIKI) ---
-    // Fungsi ini memperbaiki masalah data LCKH yang hilang karena beda nama variabel
-    const normalizeLckh = (data) => data.map(d => ({ 
-      ...d, 
-      userId: d.user_nip,    // KUNCI PERBAIKAN: Supabase (user_nip) -> App (userId)
-      desc: d.description    // KUNCI PERBAIKAN: Supabase (description) -> App (desc)
-    }));
-
-    const fetchCloudData = async () => {
-      // BAGIAN A: AMBIL DATA ABSENSI (Aman, logika tetap sama)
+      // 2. Ambil Data dari Supabase (Cloud)
+      // Users
+      const { data: users, error: userError } = await supabase.from('users').select('*');
+      if (!userError && users && users.length > 0) {
+        setUsersList(users);
+      } 
+      
+      // Absensi
       const { data: attendance } = await supabase.from('attendance').select('*');
       if (attendance) {
-        const normalized = normalizeAttendance(attendance);
-        // Membagi data ke pos masing-masing seperti biasa
-        setAttendanceData(normalized.filter(d => d.category === 'berjamaah'));
-        setRamadhanData(normalized.filter(d => d.category === 'ramadhan'));
-        setLateData(normalized.filter(d => d.category === 'kesiangan'));
+        const norm = attendance.map(d => ({ ...d, studentId: d.student_id }));
+        setAttendanceData(norm.filter(d => d.category === 'berjamaah'));
+        setRamadhanData(norm.filter(d => d.category === 'ramadhan'));
+        setLateData(norm.filter(d => d.category === 'kesiangan'));
       }
 
-      // BAGIAN B: AMBIL DATA LCKH (Ini yang diperbaiki agar data muncul lagi)
+      // LCKH
       const { data: lckh } = await supabase.from('lckh').select('*');
       if (lckh) {
-        const normalizedLckh = normalizeLckh(lckh);
-        setLckhData(normalizedLckh);
+        setLckhData(lckh.map(d => ({ ...d, userId: d.user_nip, desc: d.description })));
       }
     };
-    
-    // Jalankan pengambilan data awal
-    fetchCloudData();
 
-    // --- SETUP REALTIME (LIVE UPDATE) ---
-    const channel = supabase.channel('public-db-changes')
-      // LISTENER 1: KHUSUS TABEL ATTENDANCE (Absen)
+    initApp();
+
+    // 3. Realtime Subscription (Agar data auto-update jika ada perubahan di DB)
+    const channel = supabase.channel('public-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+         if(payload.eventType === 'INSERT') setUsersList(prev => [...prev, payload.new]);
+         if(payload.eventType === 'UPDATE') setUsersList(prev => prev.map(u => u.id === payload.new.id ? payload.new : u));
+         if(payload.eventType === 'DELETE') setUsersList(prev => prev.filter(u => u.id !== payload.old.id));
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, (payload) => {
           const handleUpdate = (prevList, payload) => {
-            // Logika update realtime absen tetap dipertahankan
             if (payload.eventType === 'INSERT') {
               const newData = { ...payload.new, studentId: payload.new.student_id };
               if (prevList.find(i => i.id === newData.id)) return prevList;
@@ -2664,31 +2633,24 @@ const App = () => {
             }
             return prevList;
           };
-
-          // Update state sesuai kategori (Berjamaah/Ramadhan/Kesiangan)
+          
           if (payload.eventType === 'DELETE' || payload.new) {
-             setAttendanceData(prev => handleUpdate(prev, payload)); // Update Berjamaah
-             setRamadhanData(prev => handleUpdate(prev, payload));   // Update Ramadhan
-             setLateData(prev => handleUpdate(prev, payload));       // Update Kesiangan
+             const cat = payload.new ? payload.new.category : 'unknown'; // Note: Delete payload might need extra check
+             // Refresh strategi sederhana untuk memastikan kategori benar
+             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                if (cat === 'berjamaah') setAttendanceData(prev => handleUpdate(prev, payload));
+                if (cat === 'ramadhan') setRamadhanData(prev => handleUpdate(prev, payload));
+                if (cat === 'kesiangan') setLateData(prev => handleUpdate(prev, payload));
+             }
           }
       })
-      // LISTENER 2: KHUSUS TABEL LCKH (Kinerja)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lckh' }, (payload) => {
-           // Perbaikan realtime agar sinkronisasi LCKH lancar
            if (payload.eventType === 'INSERT') {
-             setLckhData(prev => [...prev, { 
-               ...payload.new, 
-               userId: payload.new.user_nip,     // Mapping diperbaiki
-               desc: payload.new.description     // Mapping diperbaiki
-             }]);
+             setLckhData(prev => [...prev, { ...payload.new, userId: payload.new.user_nip, desc: payload.new.description }]);
            } else if (payload.eventType === 'DELETE') {
              setLckhData(prev => prev.filter(i => i.id !== payload.old.id));
            } else if (payload.eventType === 'UPDATE') {
-             setLckhData(prev => prev.map(i => i.id === payload.new.id ? {
-               ...payload.new,
-               userId: payload.new.user_nip,     // Mapping diperbaiki
-               desc: payload.new.description     // Mapping diperbaiki
-             } : i));
+             setLckhData(prev => prev.map(i => i.id === payload.new.id ? { ...payload.new, userId: payload.new.user_nip, desc: payload.new.description } : i));
            }
       })
       .subscribe();
@@ -2696,29 +2658,50 @@ const App = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  useEffect(() => { localStorage.setItem('userProfiles', JSON.stringify(userProfiles)); }, [userProfiles]);
+  // B. Simpan User List ke LocalStorage (Backup)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && usersList.length > 0) {
+      localStorage.setItem('appUsers', JSON.stringify(usersList));
+    }
+  }, [usersList]);
 
-  // --- UPDATE LOGIC LOGIN (PENTING: Cek ke usersList) ---
+  // C. Simpan Profil Golongan ke LocalStorage
+  // (PENTING: Ini sekarang aman karena userProfiles sudah dideklarasikan di atas)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && Object.keys(userProfiles).length > 0) {
+      localStorage.setItem('userProfiles', JSON.stringify(userProfiles));
+    }
+  }, [userProfiles]);
+
+
+  // --- 3. HANDLERS ---
+
   const handleLogin = (identifier, password) => {
-    // Cari user di usersList yang dinamis
+    // Cari user di list (gabungan Supabase & Initial)
     const validUser = usersList.find(u => u.nip === identifier && u.password === password);
 
     if (validUser) {
       setCurrentUser(validUser); 
-      localStorage.setItem('currentUser', JSON.stringify(validUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('currentUser', JSON.stringify(validUser));
+      }
       setView('dashboard'); 
-      addToast('success', 'Login Berhasil', `Selamat datang, ${validUser.name} (${validUser.role})!`);
+      addToast('success', 'Login Berhasil', `Selamat datang, ${validUser.name}!`);
     } else {
-      addToast('error', 'Login Gagal', 'NIP/NISN atau Password salah.');
+      addToast('error', 'Login Gagal', 'NIP/NISN atau Password salah/tidak ditemukan.');
     }
   };
 
   const logout = () => { 
     setCurrentUser(null); 
-    localStorage.removeItem('currentUser'); 
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('currentUser'); 
+    }
     setView('login'); 
     addToast('info', 'Logout', 'Anda telah keluar dari aplikasi.');
   };
+
+  // --- 4. RENDER ---
 
   if (view === 'login') return (
     <>
@@ -2727,6 +2710,7 @@ const App = () => {
       <LoginScreen onLogin={handleLogin} />
     </>
   );
+
   // Cek hak akses untuk render konten utama
   const userPermissions = currentUser ? (ROLE_PERMISSIONS[currentUser.role] || []) : [];
 
@@ -2757,30 +2741,26 @@ const App = () => {
       </div>
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full bg-gray-50/50">
-        {/* Render Dashboard jika punya akses */}
+        
         {view === 'dashboard' && userPermissions.includes('dashboard') && <Dashboard user={currentUser} />}
         
-        {/* Render Absen Berjamaah */}
         {view === 'absen-berjamaah' && userPermissions.includes('absen-berjamaah') && (
             <AbsenBerjamaah user={currentUser} data={attendanceData} setData={setAttendanceData} holidays={holidays} setHolidays={setHolidays} addToast={addToast} />
         )}
         
-        {/* Render Absen Kesiangan */}
         {view === 'absen-kesiangan' && userPermissions.includes('absen-kesiangan') && (
             <AbsenKesiangan user={currentUser} data={lateData} setData={setLateData} addToast={addToast} />
         )}
         
-        {/* Render Absen Ramadhan */}
         {view === 'absen-ramadhan' && userPermissions.includes('absen-ramadhan') && (
             <AbsenRamadhan user={currentUser} data={ramadhanData} setData={setRamadhanData} holidays={holidays} setHolidays={setHolidays} addToast={addToast} />
         )}
         
-        {/* Render LCKH */}
         {view === 'lckh' && userPermissions.includes('lckh') && (
             <LCKHManager user={currentUser} data={lckhData} setData={setLckhData} profiles={userProfiles} setProfiles={setUserProfiles} addToast={addToast} />
         )}
 
-        {/* --- FITUR BARU: MANAJEMEN USER (Hanya Admin) --- */}
+        {/* FITUR BARU: MANAJEMEN USER (Hanya Admin) */}
         {view === 'user-management' && userPermissions.includes('user-management') && (
             <UserManagement users={usersList} setUsers={setUsersList} addToast={addToast} />
         )}
