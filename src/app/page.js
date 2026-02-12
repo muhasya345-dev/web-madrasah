@@ -795,6 +795,14 @@ const MONTHS = [
 const YEARS = [2025, 2026, 2027, 2028];
 
 // --- HELPER FUNCTIONS ---
+const getLocalISOString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // Format YYYY-MM-DD sesuai lokal
+};
+
 const getFormattedDate = (dateObj) => {
   return dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
@@ -1225,11 +1233,11 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
   const [scanInput, setScanInput] = useState('');
   const [manualSearch, setManualSearch] = useState("");
   const [selectedClassRecap, setSelectedClassRecap] = useState('7A');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalISOString());
+  const [endDate, setEndDate] = useState(getLocalISOString());
   const [isPrintAllClasses, setIsPrintAllClasses] = useState(false);
 
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = getLocalISOString();
   const lastScanRef = useRef({ code: '', timestamp: 0 });
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
@@ -1251,47 +1259,42 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
     
     const student = STUDENTS.find(s => s.id === studentId);
 
-    // 2. CEK DUPLIKASI LOKAL (PENTING: Mencegah Double Scan/Input)
-    // Cek apakah siswa ini SUDAH ada di data absensi hari ini (apapun metodenya: scan/manual)
+    // 2. CEK DUPLIKASI (Siswa hanya bisa absen 1x sehari)
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
     
     if (localCheck) { 
         if (viaMethod === 'Scan') {
-            addToast('info', 'Sudah Hadir', `Siswa ${student.name} sudah absen sebelumnya.`);
+            addToast('info', 'Sudah Absen', `Siswa ${student.name} sudah tercatat hadir.`);
         } else {
-            addToast('error', 'Ditolak', `Siswa ${student.name} sudah tercatat absen hari ini!`);
+            addToast('error', 'Gagal', `Siswa ${student.name} SUDAH absen hari ini!`);
         }
-        return false; // STOP PROSES
+        return false; 
     }
 
-    // 3. Simpan ke Database Supabase
+    // 3. Simpan ke Database
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
       date: currentDate, status, category: 'berjamaah', method: viaMethod, officer: user.name
     }]).select();
 
     if (!error && inserted && inserted.length > 0) {
-      // 4. OPTIMISTIC UPDATE (KUNCI KECEPATAN)
-      // Langsung masukkan ke state lokal tanpa menunggu Realtime Subscription
-      // Ini membuat scan berikutnya untuk siswa ini langsung tertolak karena data sudah ada di 'data'
+      // 4. OPTIMISTIC UPDATE
       const newRecord = { ...inserted[0], studentId: inserted[0].student_id };
-      
-      // Update State Global
       setData(prev => [...prev, newRecord]);
 
       if(viaMethod === 'Scan') {
         addToast('success', 'Scan Berhasil', `${student.name} - ${student.class}`);
       } else {
-        addToast('success', 'Absen Manual', `Berhasil mencatat: ${student.name}`);
+        addToast('success', 'Manual Berhasil', `Siswa ${student.name} tercatat ${status}.`);
       }
       return true;
     } else {
-      addToast('error', 'Error Database', 'Gagal menyimpan data ke server.'); 
+      addToast('error', 'Error Database', 'Gagal menyimpan data.'); 
       return false;
     }
   };
 
-  // Logic Scanner & Input Manual (Sama)
+  // Logic Scanner
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1300,15 +1303,14 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 300, height: 300 } }, 
           async (decodedText) => {
             const now = Date.now();
-            // Debounce scanner agar tidak membaca frame yang sama berulang-ulang dalam 2.5 detik
             if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 2500)) return;
             lastScanRef.current = { code: decodedText, timestamp: now };
             
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
-              scanner.pause(); // Pause kamera saat memproses
+              scanner.pause();
               await processAttendance(student.id, 'Hadir', 'Scan');
-              setTimeout(() => scanner.resume(), 1000); // Resume cepat setelah proses selesai
+              setTimeout(() => scanner.resume(), 1000);
             } else {
                addToast('error', 'QR Tidak Dikenal', 'Kode QR tidak terdaftar.');
             }
@@ -1316,7 +1318,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
       });
     }
     return () => { if (scanner && scanner.isScanning) scanner.stop().catch(console.error); };
-  }, [tab, data]); // 'data' masuk dependency agar scanner tahu update terbaru
+  }, [tab, data]);
 
   const handleScanInput = async (e) => {
     e.preventDefault();
@@ -1360,6 +1362,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
           </div>
         )}
 
+        {/* --- BAGIAN MANUAL (PERBAIKAN: HAPUS TOMBOL HADIR) --- */}
         {tab === 'manual' && (
           <div>
             <div className="mb-4 relative group">
@@ -1377,9 +1380,16 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
                       <tr key={s.id} className="hover:bg-gray-50">
                         <td className="p-3">{s.name}</td><td className="p-3">{s.class}</td>
                         <td className="p-3 flex gap-2">
-                          {['Hadir', 'Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                            <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} 
-                                className={`px-3 py-1 text-xs rounded-full border transition-all ${st === status ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white hover:bg-green-50 text-gray-600'} ${isRec && st !== status ? 'opacity-30 cursor-not-allowed' : ''}`}>
+                          {/* PERBAIKAN: Array status tidak ada 'Hadir' */}
+                          {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
+                            <button 
+                                key={status} 
+                                disabled={isRec} // Kalau sudah ada record (scan/manual), tombol mati
+                                onClick={() => processAttendance(s.id, status, 'Manual')} 
+                                className={`px-3 py-1 text-xs rounded-full border transition-all 
+                                    ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-600'} 
+                                    ${isRec ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            >
                                 {status}
                             </button>
                           ))}
@@ -1393,7 +1403,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
           </div>
         )}
 
-        {/* ... (TAB REKAP HARIAN & RANGE SAMA PERSIS DENGAN KODE SEBELUMNYA, TIDAK ADA PERUBAHAN) ... */}
+        {/* ... (Rekap Harian, Range, Settings SAMA SEPERTI SEBELUMNYA) ... */}
         {tab === 'rekap-harian' && isPrivileged && (
           <div className="animate-fade-in-up w-full">
              <div className="flex flex-wrap items-center gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
@@ -1422,7 +1432,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
 
         {tab === 'rekap-range' && isPrivileged && (
           <div className="animate-fade-in-up w-full">
-            {/* ... (Konten rekap range sama persis dengan sebelumnya) ... */}
             <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
                 <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
                 <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
@@ -1475,7 +1484,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
                           })}
                         </tbody>
                       </table>
-
                       <div className="signature-section mt-8 flex justify-end">
                         <div className="text-center w-64">
                           <p>Tasikmalaya, {getTitimangsa(new Date())}</p>
@@ -1503,7 +1511,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
 const AbsenKesiangan = ({ user, data, setData, addToast }) => {
   // Tambah mode 'daily-print'
   const [viewMode, setViewMode] = useState('daily'); // 'daily', 'daily-print', 'monthly'
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalISOString());
   const [studentId, setStudentId] = useState('');
   const [reason, setReason] = useState('');
   const [studentSearch, setStudentSearch] = useState("");
@@ -1700,7 +1708,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [isPrintAllClasses, setIsPrintAllClasses] = useState(false);
 
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = getLocalISOString();
   const lastScanRef = useRef({ code: '', timestamp: 0 });
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
@@ -1714,16 +1722,12 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
   };
 
   const processAttendance = async (studentId, status, viaMethod) => {
-    if (!isRamadhanDay(currentDate)) { 
-        addToast('error', 'Bukan Jadwal', 'Hari ini bukan jadwal kegiatan Ramadhan.'); 
-        return false; 
-    }
+    if (!isRamadhanDay(currentDate)) { addToast('error', 'Bukan Jadwal', 'Hari ini bukan jadwal kegiatan Ramadhan.'); return false; }
     
     const student = STUDENTS.find(s => s.id === studentId);
     
-    // CEK DUPLIKASI LOKAL (Optimistic Check)
+    // CEK DUPLIKASI
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
-    
     if (localCheck) { 
         if(viaMethod !== 'Scan') addToast('error', 'Gagal', `Siswa ${student.name} sudah absen.`);
         else addToast('info', 'Sudah Hadir', `Siswa ${student.name} sudah tercatat.`);
@@ -1736,12 +1740,11 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
     }]).select();
 
     if (!error && inserted && inserted.length > 0) {
-      // OPTIMISTIC UPDATE
       const newRecord = { ...inserted[0], studentId: inserted[0].student_id };
       setData(prev => [...prev, newRecord]);
 
       if (viaMethod === 'Scan') addToast('success', 'Ramadhan', `${student.name} Hadir`);
-      else addToast('success', 'Manual', `${student.name} berhasil dicatat.`);
+      else addToast('success', 'Manual Berhasil', `Siswa ${student.name} tercatat ${status}.`);
       return true;
     } else {
       addToast('error', 'Gagal', 'Koneksi Database Bermasalah.'); 
@@ -1749,6 +1752,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
     }
   };
 
+  // Logic Scan & Manual
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1759,18 +1763,17 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
             const now = Date.now();
             if (decodedText === lastScanRef.current.code && (now - lastScanRef.current.timestamp < 3000)) return; 
             lastScanRef.current = { code: decodedText, timestamp: now };
-            
             const student = STUDENTS.find(s => s.code === decodedText);
             if (student) {
               scanner.pause();
               await processAttendance(student.id, 'Hadir', 'Scan');
-              setTimeout(() => scanner.resume(), 1500); // Resume lebih cepat
+              setTimeout(() => scanner.resume(), 1500);
             }
           }, () => {}).catch(console.error);
       });
     }
     return () => { if (scanner && scanner.isScanning) scanner.stop().catch(console.error); };
-  }, [tab, data]); // Pastikan 'data' ada di sini
+  }, [tab, data]);
 
   const handleScanInput = async (e) => {
       e.preventDefault();
@@ -1780,16 +1783,13 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
       if (success) setScanInput('');
   };
 
-  // ... (Sisa kode render Ramadhan sama seperti sebelumnya, tidak perlu diubah) ...
-  // ... (render return, manual table, rekap, dll) ...
-  // Copy dari kode AbsenRamadhan sebelumnya
   const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()));
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClass];
 
   return (
     <div className="space-y-4 animate-fade-in-up">
-      {/* ... (Header & Tab sama) ... */}
+      {/* Header & Tabs ... */}
       <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
         <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><Moon className="text-purple-600"/> Absen Ramadhan</h2>
         <div className="bg-gray-100 px-3 py-1 rounded-lg text-sm text-gray-600">{getFormattedDate(new Date(currentDate))}</div>
@@ -1813,7 +1813,8 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
             </form>
           </div>
         )}
-        
+
+        {/* --- BAGIAN MANUAL (PERBAIKAN: HAPUS TOMBOL HADIR) --- */}
         {tab === 'manual' && (
           <div>
             <div className="mb-4 relative group">
@@ -1831,8 +1832,18 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
                             <tr key={s.id} className="hover:bg-purple-50/30">
                                 <td className="p-3 font-medium">{s.name}</td><td className="p-3">{s.class}</td>
                                 <td className="p-3 flex gap-1">
-                                    {['Hadir', 'Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
-                                        <button key={status} disabled={isRec && st !== status} onClick={() => processAttendance(s.id, status, 'Manual')} className={`px-2 py-1 border rounded text-xs transition-all ${st === status ? 'bg-purple-600 text-white border-purple-600' : ''} ${isRec && st !== status ? 'opacity-30 cursor-not-allowed' : 'hover:bg-purple-100'}`}>{status}</button>
+                                    {/* PERBAIKAN: Array status tidak ada 'Hadir' */}
+                                    {['Sakit', 'Izin', 'Alfa'].map(status => (
+                                        <button 
+                                            key={status} 
+                                            disabled={isRec} 
+                                            onClick={() => processAttendance(s.id, status, 'Manual')} 
+                                            className={`px-2 py-1 border rounded text-xs transition-all 
+                                                ${st === status ? 'bg-purple-600 text-white border-purple-600' : 'bg-white hover:bg-purple-100 text-gray-600'} 
+                                                ${isRec ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                        >
+                                            {status}
+                                        </button>
                                     ))}
                                 </td>
                             </tr>
@@ -1844,7 +1855,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
           </div>
         )}
 
-        {/* ... (TAB REKAP HARIAN & RANGE SAMA LOGIKANYA DENGAN ABSEN BERJAMAAH) ... */}
+        {/* ... (Rekap Harian & Range Ramadhan - SAMA SEPERTI SEBELUMNYA) ... */}
         {tab === 'rekap-harian' && isPrivileged && (
              <div className="animate-fade-in-up w-full">
                  <div className="flex gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
@@ -1888,9 +1899,9 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
              </div>
         )}
 
-        {/* ... (Rekap Range & Settings sama) ... */}
         {tab === 'rekap-range' && isPrivileged && (
-            <div className="animate-fade-in-up w-full">
+             <div className="animate-fade-in-up w-full">
+                 {/* ... (Konten rekap range Ramadhan) ... */}
                  <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
                     <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
                     <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
@@ -1958,6 +1969,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
              </div>
         )}
         
+        {/* ... (Settings sama) ... */}
         {tab === 'settings' && isPrivileged && (
           <div><h3 className="font-bold mb-2">Libur Ramadhan</h3><div className="flex gap-2"><input type="date" id="ramadhanHoliday" className="border p-2 rounded"/><button onClick={()=>{const v=document.getElementById('ramadhanHoliday').value; if(v) {setHolidays([...holidays, v]); addToast('success','Disimpan','Jadwal libur ditambahkan')}}} className="bg-purple-600 text-white px-4 py-2 rounded">Tambah</button></div>
           <ul className="mt-4 list-disc pl-5">{holidays.map(h => <li key={h} className="text-purple-700">{getFormattedDate(new Date(h))}</li>)}</ul></div>
