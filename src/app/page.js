@@ -770,6 +770,7 @@ const ACTIVITIES_LIST = [
   { name: 'Libur semester', unit: 'hari', doc: 'Dokumen kalender pendidikan' },
   { name: 'Mengikuti kegiatan PHBI', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBI' },
   { name: 'Mengikuti kegiatan PHBN', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBN' },
+  { name: 'Mendampingi siswa dalam kegiatan pembiasaan olahraga', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBN' },
 ];
 
 const HEADMASTER_ACTIVITIES = [
