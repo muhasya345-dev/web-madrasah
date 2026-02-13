@@ -18,25 +18,24 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // --- KOMPONEN NOTIFIKASI (TOAST) ---
 const ToastNotification = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    // PERBAIKAN: Posisi fixed di tengah layar (top-1/2 left-1/2)
+    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-xs px-4">
       {toasts.map((toast) => (
         <div 
           key={toast.id} 
-          className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 animate-slide-in ${
-            toast.type === 'success' ? 'bg-green-600' : 
-            toast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+          className={`pointer-events-auto flex flex-col items-center justify-center text-center gap-2 p-6 rounded-2xl shadow-2xl text-white transform transition-all duration-300 animate-fade-in-up border-2 border-white/20 backdrop-blur-md ${
+            toast.type === 'success' ? 'bg-green-600/95' : 
+            toast.type === 'error' ? 'bg-red-600/95' : 'bg-blue-600/95'
           }`}
         >
-          {toast.type === 'success' && <CheckCircle size={20} />}
-          {toast.type === 'error' && <XCircle size={20} />}
-          {toast.type === 'info' && <Info size={20} />}
+          {toast.type === 'success' && <CheckCircle size={48} className="text-white mb-2" />}
+          {toast.type === 'error' && <XCircle size={48} className="text-white mb-2" />}
+          {toast.type === 'info' && <Info size={48} className="text-white mb-2" />}
+          
           <div>
-            <h4 className="font-bold text-sm">{toast.title}</h4>
-            <p className="text-xs opacity-90">{toast.message}</p>
+            <h4 className="font-bold text-lg">{toast.title}</h4>
+            <p className="text-sm opacity-90 mt-1">{toast.message}</p>
           </div>
-          <button onClick={() => removeToast(toast.id)} className="ml-2 hover:bg-white/20 p-1 rounded">
-            <X size={14} />
-          </button>
         </div>
       ))}
     </div>
@@ -49,7 +48,7 @@ const WALI_KELAS_MAP = {
   '7A': { name: 'INTAN SITI NURHAYATI, S.Pd.', nip: '197206301998022001' },
   '7B': { name: 'Dra. Hj. SITI HANAH, S.Pd.I', nip: '196706121994032003' },
   '7C': { name: 'ELIS LIDIANINGSIH, S.Pd.', nip: '198110182025212002' },
-  '7D': { name: 'RENDRA PURA SETIA RAHMATILLAH, S.Pd', nip: '199004182025051002' },
+  '7D': { name: 'RENDRA PURA SETIA R., S.Pd', nip: '199004182025051002' },
   '7E': { name: 'ALIA HERNIS, S.Ag', nip: '197608112022212010' },
   '7F': { name: 'LILIS NURMILAH, S.Pd.I.', nip: '196610022025212001' },
   '7G': { name: 'ENCEP SUSANTO, S.Pd', nip: '198506122025211005' },
@@ -816,8 +815,28 @@ const getShortDate = (d) => {
   return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
 };
 
+// --- HELPER BARU UNTUK HITUNG HARI EFEKTIF (ALFA OTOMATIS) ---
+const countEffectiveDays = (startDate, endDate, holidays, allowedDays) => {
+  let count = 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  // Loop dari tanggal mulai sampai akhir
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay(); // 0=Minggu, 1=Senin, ..., 6=Sabtu
+    const dateStr = d.toISOString().split('T')[0];
+    
+    // Jika hari termasuk hari kerja (allowedDays) DAN bukan hari libur
+    if (allowedDays.includes(dayOfWeek) && !holidays.includes(dateStr)) {
+      count++;
+    }
+  }
+  return count;
+};
+
 // --- STYLES ---
 // --- STYLES ---
+// --- STYLES (VERSI FIX CETAK & MOBILE) ---
 const styles = `
 @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
 
@@ -832,142 +851,134 @@ body, html {
   print-color-adjust: exact !important;
 }
 
-/* --- KERTAS A4 (Sama Persis di Layar & Print) --- */
+/* --- KERTAS A4 (Layout Dasar) --- */
 .sheet {
   background: white;
-  width: 210mm;        /* Lebar A4 */
-  min-height: 297mm;   /* Tinggi Minimum A4 */
-  
-  /* MARGIN KERTAS (Padding Dalam) */
-  /* Atas 1.5cm, Kanan 1.5cm, Bawah 2cm, Kiri 1.5cm */
+  width: 210mm; 
+  /* min-height dihapus agar fleksibel saat konten sedikit/banyak */
   padding: 15mm 15mm 20mm 15mm; 
-  
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  margin-bottom: 30px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* --- TABEL --- */
-table { 
-  width: 100%; 
-  border-collapse: collapse; 
-  margin-top: 5px; 
-  margin-bottom: 10px; 
-  font-size: 10pt; 
+/* --- STYLE KHUSUS TAMPILAN MOBILE (HP) - AGAR TAMPAK FULL --- */
+@media screen and (max-width: 768px) {
+  .preview-wrapper {
+    padding: 10px !important;
+    background: #52525b; 
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 500px;
+  }
+  
+  /* ZOOM OUT di HP: Agar kertas A4 terlihat utuh */
+  .sheet {
+    transform: scale(0.45); /* Perkecil tampilan */
+    transform-origin: top center; 
+    margin-bottom: -150mm; /* Tarik margin bawah agar tidak bolong */
+  }
+
+  /* Rapikan tombol print di HP */
+  .print-controls {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  .print-controls select, .print-controls button, .print-controls input {
+    width: 100% !important;
+  }
 }
 
-thead th {
-  background-color: #e5e7eb !important; 
-  font-weight: bold;
-  text-align: center;
-  border: 1px solid #000;
-  vertical-align: middle;
-  padding: 5px 2px;
-}
-
-tbody td { 
-  border: 1px solid #000; 
-  vertical-align: top; 
-  padding: 4px 4px;
-  line-height: 1.1;
-}
-
-/* --- HEADER LAPORAN --- */
-.report-header { 
-  font-family: Arial, sans-serif; 
-  text-align: center; 
-  margin-bottom: 15px;
-}
-.report-header h1 { 
-  font-size: 12pt; margin: 0; text-decoration: underline; font-weight: bold; 
-}
-.report-header h2 { 
-  font-size: 10pt; margin: 2px 0 10px 0; text-transform: uppercase; font-weight: bold; 
-}
-.header-identity {
-  font-size: 9pt; line-height: 1.2; text-align: left;
-}
-
-.signature-section { margin-top: 20px; page-break-inside: avoid; }
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.font-bold { font-weight: bold; }
-
-/* =========================================
-   MODE LAYAR (PREVIEW)
-   ========================================= */
-@media screen {
-  /* Area abu-abu di belakang kertas */
+/* --- STYLE TAMPILAN DESKTOP --- */
+@media screen and (min-width: 769px) {
   .preview-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 30px;
-    background: #52525b; /* Abu gelap */
+    background: #52525b;
     border-radius: 8px;
-    margin: 20px; /* Jarak dari menu/atas */
+    margin: 20px;
     overflow: auto;
-  }
-  
-  .sheet {
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4); /* Efek bayangan */
   }
 }
 
-/* =========================================
-   MODE CETAK (PRINT / PDF) - PERBAIKAN
-   ========================================= */
+/* --- MODE CETAK (PRINT) - DIKEMBALIKAN AGAR TIDAK LONCAT --- */
 @media print {
   @page { 
     size: A4; 
-    margin: 15mm !important; /* Reset margin printer */
+    margin: 0mm !important; /* Gunakan margin 0, kita atur padding di .sheet */
   }
   
-  /* 1. Sembunyikan elemen UI yang mengganggu */
   .no-print, nav, aside, header, footer, button, .mobile-header, .sidebar, ::-webkit-scrollbar { 
     display: none !important; 
   }
-
-  /* 2. Reset Layout Utama agar tidak mengganggu posisi */
-  body, html, main, .app-layout {
-    background: white !important;
-    height: auto !important;
-    width: auto !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: static !important;
-  }
-
-  /* 3. TEKNIK OVERLAY: Paksa Wrapper Preview menutupi semuanya */
-  .preview-wrapper {
-    display: block !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 210mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-    z-index: 9999 !important; /* Pastikan di paling atas layer */
-  }
-
-  /* 4. Atur Sheet/Kertas */
-  .sheet {
-    margin: 0 !important;
-    box-shadow: none !important;
-    page-break-after: always !important;
-    width: 210mm !important;
-    /* Tinggi auto agar halaman terakhir tidak kosong */
-    min-height: auto !important; 
+  
+  body, html, main, .app-layout { 
+    background: white !important; 
     height: auto !important; 
+    width: auto !important; 
+    margin: 0 !important; 
+    padding: 0 !important; 
+    overflow: visible !important;
   }
   
-  /* Hapus page-break di halaman terakhir */
-  .sheet:last-child {
-    page-break-after: auto !important;
+  .preview-wrapper { 
+    display: block !important; 
+    position: absolute !important; 
+    top: 0 !important; 
+    left: 0 !important; 
+    width: 100% !important; 
+    margin: 0 !important; 
+    padding: 0 !important; 
+    background: white !important; 
+    z-index: 9999 !important; 
+  }
+  
+  .sheet { 
+    margin: 0 !important; 
+    box-shadow: none !important; 
+    page-break-after: always !important; 
+    width: 210mm !important; 
+    
+    /* PERBAIKAN UTAMA: */
+    height: auto !important;      /* Tinggi menyesuaikan isi */
+    min-height: auto !important;  /* Jangan dipaksa 297mm */
+    
+    padding: 15mm 15mm 20mm 15mm !important; 
+    transform: none !important;   /* Reset zoom mobile saat print */
+    margin-bottom: 0 !important; 
+  }
+  
+  /* Cegah halaman kosong berlebih */
+  .sheet:last-child { page-break-after: auto !important; }
+  
+  /* Pastikan Tanda Tangan tidak terpotong (PENTING) */
+  .signature-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Pastikan baris tabel tidak terpotong jelek */
+  tr {
+    page-break-inside: avoid;
   }
 }
+
+/* --- TABEL --- */
+table { width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 10px; font-size: 10pt; }
+thead th { background-color: #e5e7eb !important; font-weight: bold; text-align: center; border: 1px solid #000; vertical-align: middle; padding: 5px 2px; }
+tbody td { border: 1px solid #000; vertical-align: top; padding: 4px 4px; line-height: 1.1; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.font-bold { font-weight: bold; }
 `;
 
 // --- SUB-COMPONENTS ---
@@ -1242,24 +1253,25 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
 
+  // HARI KERJA BERJAMAAH: SENIN(1) s.d KAMIS(4)
+  const BERJAMAAH_DAYS = [1, 2, 3, 4]; 
+
   const isWorkingDay = (dateStr) => {
     const d = new Date(dateStr);
     const day = d.getDay();
-    if (day < 1 || day > 4) return false;
+    // Hanya Senin-Kamis dan bukan hari libur
+    if (!BERJAMAAH_DAYS.includes(day)) return false; 
     if (holidays.includes(dateStr)) return false;
     return true;
   };
 
   const processAttendance = async (studentId, status, viaMethod) => {
-    // 1. Cek Hari Libur
     if (!isWorkingDay(currentDate)) { 
-        addToast('error', 'Bukan Jadwal', 'Hari ini hari libur atau bukan jadwal shalat.'); 
+        addToast('error', 'Layanan Tutup', 'Hari ini libur/bukan jadwal (Hanya Senin-Kamis).'); 
         return false; 
     }
     
     const student = STUDENTS.find(s => s.id === studentId);
-
-    // 2. CEK DUPLIKASI (Siswa hanya bisa absen 1x sehari)
     const localCheck = data.find(d => d.date === currentDate && d.studentId === studentId);
     
     if (localCheck) { 
@@ -1271,14 +1283,12 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
         return false; 
     }
 
-    // 3. Simpan ke Database
     const { data: inserted, error } = await supabase.from('attendance').insert([{
       student_id: studentId, student_name: student.name, student_class: student.class,
       date: currentDate, status, category: 'berjamaah', method: viaMethod, officer: user.name
     }]).select();
 
     if (!error && inserted && inserted.length > 0) {
-      // 4. OPTIMISTIC UPDATE
       const newRecord = { ...inserted[0], studentId: inserted[0].student_id };
       setData(prev => [...prev, newRecord]);
 
@@ -1289,12 +1299,12 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
       }
       return true;
     } else {
-      addToast('error', 'Error Database', 'Gagal menyimpan data.'); 
+      addToast('error', 'Gagal', 'Koneksi Database Bermasalah.'); 
       return false;
     }
   };
 
-  // Logic Scanner
+  // Logic Scanner & Input Manual (TIDAK BERUBAH)
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1328,12 +1338,13 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
     if (success) setScanInput('');
   };
 
-  const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
+  const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || '-';
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()) || s.class.toLowerCase().includes(manualSearch.toLowerCase()));
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClassRecap];
 
   return (
     <div className="space-y-4 animate-fade-in-up">
+      {/* Header */}
       <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
         <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><QrCode className="text-green-600"/> Absensi Berjamaah</h2>
         <div className="bg-gray-100 px-3 py-1 rounded-lg text-sm font-medium text-gray-600">{getFormattedDate(new Date(currentDate))}</div>
@@ -1362,7 +1373,6 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
           </div>
         )}
 
-        {/* --- BAGIAN MANUAL (PERBAIKAN: HAPUS TOMBOL HADIR) --- */}
         {tab === 'manual' && (
           <div>
             <div className="mb-4 relative group">
@@ -1371,7 +1381,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
             </div>
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-semibold text-left"><tr><th className="p-3">Nama</th><th className="p-3">Kelas</th><th className="p-3">Status</th></tr></thead>
+                <thead className="bg-gray-50 text-gray-600 font-semibold text-left"><tr><th className="p-3">Nama</th><th className="p-3">Kelas</th><th className="p-3">Status Hari Ini</th></tr></thead>
                 <tbody className="divide-y">
                   {manualStudents.slice(0, 50).map(s => { 
                     const st = getStatus(s.id, currentDate);
@@ -1380,11 +1390,11 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
                       <tr key={s.id} className="hover:bg-gray-50">
                         <td className="p-3">{s.name}</td><td className="p-3">{s.class}</td>
                         <td className="p-3 flex gap-2">
-                          {/* PERBAIKAN: Array status tidak ada 'Hadir' */}
+                          {/* TOMBOL HADIR DIHILANGKAN DI SINI SESUAI REQUEST */}
                           {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
                             <button 
                                 key={status} 
-                                disabled={isRec} // Kalau sudah ada record (scan/manual), tombol mati
+                                disabled={isRec} 
                                 onClick={() => processAttendance(s.id, status, 'Manual')} 
                                 className={`px-3 py-1 text-xs rounded-full border transition-all 
                                     ${st === status ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-600'} 
@@ -1403,13 +1413,13 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
           </div>
         )}
 
-        {/* ... (Rekap Harian, Range, Settings SAMA SEPERTI SEBELUMNYA) ... */}
         {tab === 'rekap-harian' && isPrivileged && (
           <div className="animate-fade-in-up w-full">
-             <div className="flex flex-wrap items-center gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
+             {/* PERBAIKAN: Style Mobile untuk controls */}
+             <div className="flex flex-wrap items-center gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border print-controls">
                <label className="font-bold text-gray-700">Kelas:</label>
                <select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} className="border p-2 rounded bg-white">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select>
-               <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded ml-auto flex items-center gap-2 shadow-sm hover:bg-blue-700"><Printer size={16}/> Print</button>
+               <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded ml-auto flex items-center gap-2 shadow-sm hover:bg-blue-700 justify-center"><Printer size={16}/> Print</button>
              </div>
              
              <div className="preview-wrapper">
@@ -1421,7 +1431,7 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
                     <tbody>
                       {STUDENTS.filter(s => s.class === selectedClassRecap).map((s, idx) => {
                         const rec = data.find(d => d.date === currentDate && d.studentId === s.id);
-                        return <tr key={s.id}><td className="border border-black p-1 text-center">{idx+1}</td><td className="border border-black p-1">{s.name}</td><td className="border border-black p-1 text-center">{rec?.status || 'Alfa'}</td><td className="border border-black p-1 text-center">{rec?.officer || '-'}</td></tr>;
+                        return <tr key={s.id}><td className="border border-black p-1 text-center">{idx+1}</td><td className="border border-black p-1">{s.name}</td><td className="border border-black p-1 text-center">{rec?.status || (isWorkingDay(currentDate) ? 'Alfa' : '-')}</td><td className="border border-black p-1 text-center">{rec?.officer || '-'}</td></tr>;
                       })}
                     </tbody>
                   </table>
@@ -1432,12 +1442,13 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
 
         {tab === 'rekap-range' && isPrivileged && (
           <div className="animate-fade-in-up w-full">
-            <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
-                <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-                <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-                <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
+            {/* PERBAIKAN: Style Mobile untuk controls */}
+            <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border print-controls">
+                <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClassRecap} onChange={(e) => setSelectedClassRecap(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
                 <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAll" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAll" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
-                <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
+                <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold justify-center"><Printer size={18}/> Print Laporan</button>
             </div>
             
             <div className="preview-wrapper">
@@ -1454,36 +1465,64 @@ const AbsenBerjamaah = ({ user, data, setData, holidays, setHolidays, addToast }
                       <p className="text-center text-sm mb-4">Periode: {getShortDate(startDate)} s.d {getShortDate(endDate)}</p>
                       <p className="font-bold mb-2">Kelas: {className}</p>
 
-                      <table className="w-full border-collapse border border-black text-sm">
-                        <thead>
-                          <tr className="bg-gray-200">
-                            <th className="border border-black p-2" style={{width: '5%'}}>No</th>
-                            <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
-                            <th className="border border-black p-2" style={{width: '11%'}}>Hadir</th>
-                            <th className="border border-black p-2" style={{width: '11%'}}>Sakit</th>
-                            <th className="border border-black p-2" style={{width: '11%'}}>Izin</th>
-                            <th className="border border-black p-2" style={{width: '11%'}}>Alfa</th>
-                            <th className="border border-black p-2" style={{width: '11%'}}>Haid</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {classStudents.map((s, idx) => {
-                             const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0, Haid: 0 };
-                             data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
-                             return (
-                               <tr key={s.id}>
-                                 <td className="border border-black p-1 text-center">{idx+1}</td>
-                                 <td className="border border-black p-1">{s.name}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Hadir}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Sakit}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Izin}</td>
-                                 <td className="border border-black p-1 text-center font-bold text-red-600">{stats.Alfa}</td>
-                                 <td className="border border-black p-1 text-center">{stats.Haid}</td>
-                               </tr>
-                             )
-                          })}
-                        </tbody>
-                      </table>
+                      {/* --- HITUNG HARI EFEKTIF UNTUK PERIODE INI --- */}
+                      {(() => {
+                          const totalEffectiveDays = countEffectiveDays(startDate, endDate, holidays, BERJAMAAH_DAYS);
+
+                          return (
+                            <table className="w-full border-collapse border border-black text-sm">
+                                <thead>
+                                <tr className="bg-gray-200">
+                                    <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                                    <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
+                                    <th className="border border-black p-2" style={{width: '11%'}}>Hadir</th>
+                                    <th className="border border-black p-2" style={{width: '11%'}}>Sakit</th>
+                                    <th className="border border-black p-2" style={{width: '11%'}}>Izin</th>
+                                    {/* PERBAIKAN: Alfa dihitung otomatis */}
+                                    <th className="border border-black p-2" style={{width: '11%'}}>Alfa</th>
+                                    <th className="border border-black p-2" style={{width: '11%'}}>Haid</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {classStudents.map((s, idx) => {
+                                    const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0, Haid: 0 };
+                                    data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { 
+                                        if(stats[r.status] !== undefined) stats[r.status]++ 
+                                    });
+                                    
+                                    // HITUNG ALFA OTOMATIS: Total Hari Efektif - (Kehadiran + Alasan lain)
+                                    // Alfa di database (jika ada input manual Alfa) tetap dihitung, tapi biasanya Alfa adalah sisa.
+                                    // Jika Anda ingin Alfa MURNI sisa, gunakan rumus ini:
+                                    const recordedDays = stats.Hadir + stats.Sakit + stats.Izin + stats.Haid; // + stats.Alfa (jika ada input manual alfa)
+                                    // Kita asumsikan Alfa = (Hari Efektif - Recorded). Jika < 0 maka 0.
+                                    // Namun, jika ada input manual "Alfa", itu harusnya ditambah.
+                                    // Cara paling aman: Alfa = (TotalEffectiveDays - recordedDays). 
+                                    // Jika ada input manual 'Alfa', itu berarti user secara eksplisit menandai alfa.
+                                    
+                                    // LOGIKA REQUEST: "otomatis alfa". Jadi yang tidak ada data = Alfa.
+                                    let calculatedAlfa = totalEffectiveDays - recordedDays;
+                                    if (calculatedAlfa < 0) calculatedAlfa = 0;
+                                    
+                                    // Tambahkan dengan alfa yang diinput manual (jika ada)
+                                    const totalAlfa = calculatedAlfa + stats.Alfa; 
+
+                                    return (
+                                    <tr key={s.id}>
+                                        <td className="border border-black p-1 text-center">{idx+1}</td>
+                                        <td className="border border-black p-1">{s.name}</td>
+                                        <td className="border border-black p-1 text-center">{stats.Hadir}</td>
+                                        <td className="border border-black p-1 text-center">{stats.Sakit}</td>
+                                        <td className="border border-black p-1 text-center">{stats.Izin}</td>
+                                        <td className="border border-black p-1 text-center font-bold text-red-600">{totalAlfa}</td>
+                                        <td className="border border-black p-1 text-center">{stats.Haid}</td>
+                                    </tr>
+                                    )
+                                })}
+                                </tbody>
+                            </table>
+                          );
+                      })()}
+
                       <div className="signature-section mt-8 flex justify-end">
                         <div className="text-center w-64">
                           <p>Tasikmalaya, {getTitimangsa(new Date())}</p>
@@ -1704,8 +1743,8 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
   const [selectedClass, setSelectedClass] = useState('7A');
   const [manualSearch, setManualSearch] = useState("");
   const [scanInput, setScanInput] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(getLocalISOString());
+  const [endDate, setEndDate] = useState(getLocalISOString());
   const [isPrintAllClasses, setIsPrintAllClasses] = useState(false);
 
   const currentDate = getLocalISOString();
@@ -1713,10 +1752,14 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
   const isPrivileged = user.role === 'admin' || user.role === 'teacher';
   const tabs = isPrivileged ? ['scan', 'manual', 'rekap-harian', 'rekap-range'] : ['scan', 'manual'];
 
+  // HARI KERJA RAMADHAN: SENIN(1) s.d JUMAT(5)
+  const RAMADHAN_DAYS = [1, 2, 3, 4, 5];
+
   const isRamadhanDay = (dateStr) => {
     const d = new Date(dateStr);
     const day = d.getDay();
-    if (day < 1 || day > 5) return false;
+    // Hanya Senin-Jumat dan bukan libur
+    if (!RAMADHAN_DAYS.includes(day)) return false;
     if (holidays.includes(dateStr)) return false;
     return true;
   };
@@ -1752,7 +1795,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
     }
   };
 
-  // Logic Scan & Manual
+  // Logic Scan & Manual (Sama seperti sebelumnya)
   useEffect(() => {
     let scanner = null;
     if (tab === 'scan') {
@@ -1783,7 +1826,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
       if (success) setScanInput('');
   };
 
-  const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || 'Alfa';
+  const getStatus = (studentId, date) => data.find(d => d.date === date && d.studentId === studentId)?.status || '-';
   const manualStudents = STUDENTS.filter(s => s.name.toLowerCase().includes(manualSearch.toLowerCase()));
   const classesToPrint = isPrintAllClasses ? Object.keys(WALI_KELAS_MAP) : [selectedClass];
 
@@ -1823,7 +1866,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
             </div>
             <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full border-collapse text-sm">
-                  <thead className="bg-gray-50"><tr className="text-left text-gray-600"><th className="p-3">Nama</th><th className="p-3">Kls</th><th className="p-3">Status</th></tr></thead>
+                  <thead className="bg-gray-50"><tr className="text-left text-gray-600"><th className="p-3">Nama</th><th className="p-3">Kls</th><th className="p-3">Status Hari Ini</th></tr></thead>
                   <tbody className="divide-y">
                     {manualStudents.slice(0,50).map(s => {
                         const st = getStatus(s.id, currentDate);
@@ -1833,14 +1876,14 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
                                 <td className="p-3 font-medium">{s.name}</td><td className="p-3">{s.class}</td>
                                 <td className="p-3 flex gap-1">
                                     {/* PERBAIKAN: Array status tidak ada 'Hadir' */}
-                                    {['Sakit', 'Izin', 'Alfa'].map(status => (
+                                    {['Sakit', 'Izin', 'Alfa', 'Haid'].map(status => (
                                         <button 
                                             key={status} 
                                             disabled={isRec} 
                                             onClick={() => processAttendance(s.id, status, 'Manual')} 
                                             className={`px-2 py-1 border rounded text-xs transition-all 
                                                 ${st === status ? 'bg-purple-600 text-white border-purple-600' : 'bg-white hover:bg-purple-100 text-gray-600'} 
-                                                ${isRec ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                ${isRec ? 'opacity-30 cursor-not-allowed' : 'hover:bg-purple-100'}`}
                                         >
                                             {status}
                                         </button>
@@ -1855,20 +1898,18 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
           </div>
         )}
 
-        {/* ... (Rekap Harian & Range Ramadhan - SAMA SEPERTI SEBELUMNYA) ... */}
+        {/* REKAP HARIAN RAMADHAN - FULL RENDER LOGIC */}
         {tab === 'rekap-harian' && isPrivileged && (
              <div className="animate-fade-in-up w-full">
-                 <div className="flex gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
+                 <div className="flex flex-wrap items-center gap-2 mb-4 no-print bg-gray-50 p-3 rounded-lg border print-controls">
                     <label className="font-bold text-gray-700">Kelas:</label>
                     <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="border p-1 rounded">{Object.keys(WALI_KELAS_MAP).map(c => <option key={c} value={c}>{c}</option>)}</select>
-                    <button onClick={() => window.print()} className="ml-auto bg-blue-600 text-white px-4 py-1 rounded flex gap-2"><Printer size={16}/> Print</button>
+                    <button onClick={() => window.print()} className="ml-auto bg-blue-600 text-white px-4 py-1 rounded flex gap-2 justify-center"><Printer size={16}/> Print</button>
                  </div>
                  
+                 {/* PREVIEW WRAPPER */}
                  <div className="preview-wrapper">
                     <div className="sheet">
-                        <div className="text-center border-b-2 border-black pb-4 mb-4">
-                           <h3 className="font-bold text-lg">KEMENTERIAN AGAMA RI - MTsN 3 KOTA TASIKMALAYA</h3>
-                        </div>
                         <h3 className="text-center font-bold mb-4 uppercase">Rekap Absensi Ramadhan ({getFormattedDate(new Date(currentDate))})</h3>
                         <p className="text-center font-bold mb-2">Kelas: {selectedClass}</p>
                         <table className="w-full border-collapse border border-black text-sm">
@@ -1887,7 +1928,7 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
                                 <tr key={s.id}>
                                   <td className="border border-black p-1 text-center">{i+1}</td>
                                   <td className="border border-black p-1">{s.name}</td>
-                                  <td className="border border-black p-1 text-center">{getStatus(s.id, currentDate)}</td>
+                                  <td className="border border-black p-1 text-center">{rec?.status || (isRamadhanDay(currentDate) ? 'Alfa' : '-')}</td>
                                   <td className="border border-black p-1 text-center">{rec?.officer || '-'}</td>
                                 </tr>
                               )
@@ -1899,15 +1940,15 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
              </div>
         )}
 
+        {/* REKAP RANGE RAMADHAN - FULL RENDER LOGIC */}
         {tab === 'rekap-range' && isPrivileged && (
              <div className="animate-fade-in-up w-full">
-                 {/* ... (Konten rekap range Ramadhan) ... */}
-                 <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border">
-                    <div className="flex flex-col"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-                    <div className="flex flex-col"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
-                    <div className="flex flex-col w-32"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
+                 <div className="flex flex-wrap items-center gap-4 mb-6 no-print bg-gray-50 p-4 rounded-lg border print-controls">
+                    <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Mulai:</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                    <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Sampai:</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border p-2 rounded bg-white"/></div>
+                    <div className="flex flex-col w-full md:w-auto"><label className="text-xs font-bold mb-1">Kelas:</label><select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={isPrintAllClasses} className="border p-2 rounded bg-white disabled:bg-gray-200">{Object.keys(WALI_KELAS_MAP).map(cls => <option key={cls} value={cls}>{cls}</option>)}</select></div>
                     <div className="flex items-center gap-2 mt-4"><input type="checkbox" id="printAllRamadhan" checked={isPrintAllClasses} onChange={e => setIsPrintAllClasses(e.target.checked)} className="w-5 h-5 accent-green-600"/><label htmlFor="printAllRamadhan" className="font-bold text-gray-700 cursor-pointer select-none">Cetak Semua Kelas</label></div>
-                    <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold"><Printer size={18}/> Print Laporan</button>
+                    <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded ml-auto flex items-center gap-2 shadow-lg hover:bg-blue-700 font-bold justify-center"><Printer size={18}/> Print Laporan</button>
                  </div>
                  
                  <div className="preview-wrapper">
@@ -1923,35 +1964,46 @@ const AbsenRamadhan = ({ user, data, setData, holidays, setHolidays, addToast })
                             <h3 className="text-center font-bold text-lg mb-1 uppercase">Rekap Absensi Ramadhan</h3>
                             <p className="text-center text-sm mb-4">Periode: {getShortDate(startDate)} s.d {getShortDate(endDate)}</p>
                             <p className="font-bold mb-2">Kelas: {className}</p>
+                            
+                            {(() => {
+                                const totalEffectiveDays = countEffectiveDays(startDate, endDate, holidays, RAMADHAN_DAYS);
+                                return (
+                                <table className="w-full border-collapse border border-black text-sm">
+                                  <thead>
+                                    <tr className="bg-gray-200">
+                                      <th className="border border-black p-2" style={{width: '5%'}}>No</th>
+                                      <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
+                                      <th className="border border-black p-2" style={{width: '13%'}}>Hadir</th>
+                                      <th className="border border-black p-2" style={{width: '13%'}}>Sakit</th>
+                                      <th className="border border-black p-2" style={{width: '13%'}}>Izin</th>
+                                      <th className="border border-black p-2" style={{width: '16%'}}>Alfa</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {classStudents.map((s, idx) => {
+                                       const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
+                                       data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
+                                       
+                                       const recordedDays = stats.Hadir + stats.Sakit + stats.Izin;
+                                       let calculatedAlfa = totalEffectiveDays - recordedDays;
+                                       if (calculatedAlfa < 0) calculatedAlfa = 0;
+                                       const totalAlfa = calculatedAlfa + stats.Alfa;
 
-                            <table className="w-full border-collapse border border-black text-sm">
-                              <thead>
-                                <tr className="bg-gray-200">
-                                  <th className="border border-black p-2" style={{width: '5%'}}>No</th>
-                                  <th className="border border-black p-2" style={{width: '40%'}}>Nama Siswa</th>
-                                  <th className="border border-black p-2" style={{width: '13%'}}>Hadir</th>
-                                  <th className="border border-black p-2" style={{width: '13%'}}>Sakit</th>
-                                  <th className="border border-black p-2" style={{width: '13%'}}>Izin</th>
-                                  <th className="border border-black p-2" style={{width: '16%'}}>Alfa</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {classStudents.map((s, idx) => {
-                                   const stats = { Hadir: 0, Sakit: 0, Izin: 0, Alfa: 0 };
-                                   data.filter(d => d.studentId === s.id && d.date >= startDate && d.date <= endDate).forEach(r => { if(stats[r.status] !== undefined) stats[r.status]++ });
-                                   return (
-                                     <tr key={s.id}>
-                                       <td className="border border-black p-1 text-center">{idx+1}</td>
-                                       <td className="border border-black p-1">{s.name}</td>
-                                       <td className="border border-black p-1 text-center">{stats.Hadir}</td>
-                                       <td className="border border-black p-1 text-center">{stats.Sakit}</td>
-                                       <td className="border border-black p-1 text-center">{stats.Izin}</td>
-                                       <td className="border border-black p-1 text-center font-bold text-red-600">{stats.Alfa}</td>
-                                     </tr>
-                                   )
-                                })}
-                              </tbody>
-                            </table>
+                                       return (
+                                         <tr key={s.id}>
+                                           <td className="border border-black p-1 text-center">{idx+1}</td>
+                                           <td className="border border-black p-1">{s.name}</td>
+                                           <td className="border border-black p-1 text-center">{stats.Hadir}</td>
+                                           <td className="border border-black p-1 text-center">{stats.Sakit}</td>
+                                           <td className="border border-black p-1 text-center">{stats.Izin}</td>
+                                           <td className="border border-black p-1 text-center font-bold text-red-600">{totalAlfa}</td>
+                                         </tr>
+                                       )
+                                    })}
+                                  </tbody>
+                                </table>
+                                );
+                            })()}
 
                             <div className="signature-section mt-8 flex justify-end">
                               <div className="text-center w-64">
@@ -2057,13 +2109,24 @@ const CoverPage = ({ user, month, year }) => {
     </div>
   );
 };
-// --- 2. KOMPONEN LCKH MANAGER UTAMA ---
+// --- 2. KOMPONEN LCKH MANAGER (DIPERBAIKI UNTUK CETAK PROFIL) ---
 const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) => {
   const [mode, setMode] = useState('input');
+  
+  // Ambil profil dari global state, atau default III.a
   const [profile, setProfile] = useState(profiles[user.nip] || { golongan: 'III.a' });
+
+  // PERBAIKAN PENTING: Sinkronisasi State!
+  // Kode ini memastikan kalau 'profiles' global berubah (setelah save),
+  // tampilan dan data cetak ikut berubah otomatis tanpa reload.
+  useEffect(() => {
+     if (profiles[user.nip]) {
+         setProfile(profiles[user.nip]);
+     }
+  }, [profiles, user.nip]);
   
   // State untuk Input Baru
-  const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
+  const [inputDate, setInputDate] = useState(getLocalISOString());
   const [inputActivity, setInputActivity] = useState('');
   const [inputDesc, setInputDesc] = useState('');
   const [inputVolume, setInputVolume] = useState(1);
@@ -2079,24 +2142,18 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
 
   const activityList = user.nip === '197210181993032002' ? HEADMASTER_ACTIVITIES : ACTIVITIES_LIST;
 
-  // Auto-set unit saat input baru berubah
   useEffect(() => {
-    // Pastikan activityList ada isinya sebelum mencari
     if (!activityList) return;
-
     const act = activityList.find(a => a.name === inputActivity);
     if (act) setInputUnit(act.unit);
-    
-    // HAPUS 'activityList' dari array di bawah ini
   }, [inputActivity]);
 
-  // Simpan Profil
   const handleProfileSave = () => { 
-      setProfiles({ ...profiles, [user.nip]: profile }); 
-      addToast('success', 'Profil Tersimpan', 'Data golongan dan jabatan berhasil diperbarui.');
+      // Simpan ke state global
+      setProfiles(prev => ({ ...prev, [user.nip]: profile })); 
+      addToast('success', 'Profil Tersimpan', 'Pangkat & Golongan diperbarui untuk cetak.');
   };
 
-  // Submit Input Baru
   const handleInputSubmit = async (e) => {
     e.preventDefault();
     const newRecord = { user_nip: user.nip, date: inputDate, activity: inputActivity, volume: inputVolume, unit: inputUnit, description: inputDesc };
@@ -2105,17 +2162,15 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
     if (!error && inserted) {
       setData([...data, { ...inserted[0], userId: inserted[0].user_nip, desc: inserted[0].description }]);
       addToast('success', 'Data Tersimpan', 'Laporan kinerja harian berhasil ditambahkan.');
-      // Reset form
       setInputActivity(''); setInputDesc(''); setInputVolume(1);
     } else {
       addToast('error', 'Gagal Simpan', 'Terjadi kesalahan saat menyimpan data.');
     }
   };
 
-  // --- LOGIKA EDIT POP-UP ---
   const handleEditClick = (item) => {
-    setEditingItem(item); // Set data yang mau diedit
-    setIsEditModalOpen(true); // Buka Modal
+    setEditingItem(item);
+    setIsEditModalOpen(true);
   };
 
   const handleEditSave = async (updatedData) => {
@@ -2147,7 +2202,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
   const filteredData = data.filter(d => d.userId === user.nip && new Date(d.date).getMonth() === printMonth && new Date(d.date).getFullYear() === printYear);
   const sortedData = [...filteredData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  // --- LOGIKA DATA LKB (Laporan Bulanan) ---
   const lkbData = Object.values(sortedData.reduce((acc, curr) => {
     if (!acc[curr.activity]) acc[curr.activity] = { ...curr, volume: 0, doc: getDocName(curr.activity, user.nip) };
     acc[curr.activity].volume += parseInt(curr.volume);
@@ -2156,7 +2210,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
 
   return (
     <div className="space-y-6">
-      {/* Tombol Navigasi */}
       <div className="flex justify-between items-center no-print bg-white p-4 rounded-xl shadow-sm">
          <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><ClipboardList className="text-green-600"/> LCKH & LKB</h2>
          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
@@ -2167,39 +2220,46 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
 
       {mode === 'input' && (
         <div className="space-y-6 animate-fade-in-up">
-          {/* ... (Konten Mode Input SAMA SEPERTI SEBELUMNYA, tidak perlu diubah) ... */}
-          {/* ... Pastikan tabel riwayat dan form input tetap ada di sini ... */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
               <h3 className="font-bold border-b pb-3 mb-4 text-gray-700 flex items-center gap-2"><User size={18}/> Profil Pegawai</h3>
               <div className="space-y-4">
                 <div><label className="text-xs text-gray-500 uppercase font-bold">Nama</label><div className="font-medium text-gray-800">{user.name}</div></div>
-                <div><label className="text-xs text-gray-500 uppercase font-bold">Golongan</label><select value={profile.golongan} onChange={e => setProfile({...profile, golongan: e.target.value})} className="w-full border p-2 rounded mt-1 bg-gray-50 text-sm">{Object.keys(GOLONGAN_MAP).map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+                <div>
+                    <label className="text-xs text-gray-500 uppercase font-bold">Golongan</label>
+                    <select 
+                        value={profile.golongan} 
+                        onChange={e => setProfile({...profile, golongan: e.target.value})} 
+                        className="w-full border p-2 rounded mt-1 bg-gray-50 text-sm"
+                    >
+                        {Object.keys(GOLONGAN_MAP).map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                </div>
                 <div className="text-xs bg-green-50 p-3 rounded text-green-800 border border-green-100"><p><span className="font-bold">Pangkat:</span> {userRank.pangkat}</p><p><span className="font-bold">Jabatan:</span> {userRank.jabatan}</p></div>
                 <button onClick={handleProfileSave} className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"><Save size={16}/> Simpan Profil</button>
               </div>
             </div>
 
             <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-bold border-b pb-3 mb-4 text-gray-700 flex items-center gap-2"><Save size={18}/> Input Kinerja Harian</h3>
-              <form onSubmit={handleInputSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <h3 className="font-bold border-b pb-3 mb-4 text-gray-700 flex items-center gap-2"><Save size={18}/> Input Kinerja Harian</h3>
+               <form onSubmit={handleInputSubmit} className="space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="text-sm font-medium mb-1 block">Tanggal</label><input type="date" value={inputDate} onChange={e => setInputDate(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" required /></div>
                     <div><label className="text-sm font-medium mb-1 block">Kegiatan</label><select value={inputActivity} onChange={e => setInputActivity(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" required><option value="">-- Pilih Kegiatan --</option>{activityList.map((a, i) => <option key={i} value={a.name}>{a.name}</option>)}</select></div>
-                  </div>
-                  <div><label className="text-sm font-medium mb-1 block">Uraian Kegiatan</label><textarea value={inputDesc} onChange={e => setInputDesc(e.target.value)} rows="2" className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" placeholder="Deskripsikan output kegiatan..." required></textarea></div>
-                  <div className="grid grid-cols-2 gap-4">
+                 </div>
+                 <div><label className="text-sm font-medium mb-1 block">Uraian Kegiatan</label><textarea value={inputDesc} onChange={e => setInputDesc(e.target.value)} rows="2" className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-all" placeholder="Deskripsikan output kegiatan..." required></textarea></div>
+                 <div className="grid grid-cols-2 gap-4">
                     <div><label className="text-sm font-medium mb-1 block">Volume</label><input type="number" min="1" value={inputVolume} onChange={e => setInputVolume(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg" required /></div>
                     <div><label className="text-sm font-medium mb-1 block">Satuan</label><input value={inputUnit} readOnly className="w-full bg-gray-100 border border-gray-300 p-2.5 rounded-lg text-gray-500" /></div>
-                  </div>
-                  <div className="pt-2">
+                 </div>
+                 <div className="pt-2">
                     <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-md transition-all flex items-center gap-2"><Save size={18}/> Simpan Laporan</button>
-                  </div>
+                 </div>
               </form>
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h3 className="font-bold text-gray-700 text-lg">Riwayat Input</h3>
                 <div className="flex gap-3 items-center bg-gray-50 p-2 rounded-lg border border-gray-200">
@@ -2244,29 +2304,34 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
         </div>
       )}
 
-      {/* Mode Cetak */}
       {mode === 'print-view' && (
         <div className="w-full">
-           <div className="no-print bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex justify-between items-center">
-             <div className="flex gap-4 items-center">
+           <div className="no-print bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex justify-between items-center print-controls">
+             <div className="flex gap-4 items-center w-full md:w-auto">
                <span className="font-bold text-gray-700">Preview Laporan:</span>
-               <div className="flex gap-2">
-                 <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
-                 <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
+               <div className="flex gap-2 w-full">
+                 <select value={printMonth} onChange={e => setPrintMonth(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm w-full">{MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
+                 <select value={printYear} onChange={e => setPrintYear(parseInt(e.target.value))} className="border p-2 rounded-lg bg-gray-50 text-sm w-full">{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
                </div>
              </div>
-             <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md font-bold text-sm transition-all"><Printer size={18}/> Cetak Dokumen</button>
+             <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md font-bold text-sm transition-all justify-center w-full md:w-auto"><Printer size={18}/> Cetak Dokumen</button>
            </div>
            
            <div className="preview-wrapper">
-             {/* HALAMAN 1: COVER */}
              <div className="sheet">
                <CoverPage user={user} month={printMonth} year={printYear} />
              </div>
              
-             {/* HALAMAN 2: LKB */}
              <div className="sheet">
-                 <ReportHeader title="LAPORAN KINERJA BULANAN" user={user} rank={userRank} month={printMonth} year={printYear} />
+                 {/* PERBAIKAN: Mengirim prop 'golongan' ke Header */}
+                 <ReportHeader 
+                    title="LAPORAN KINERJA BULANAN" 
+                    user={user} 
+                    rank={userRank} 
+                    month={printMonth} 
+                    year={printYear} 
+                    golongan={profile.golongan} // <-- INI DIA!
+                 />
                  <table>
                    <thead>
                      <tr>
@@ -2317,7 +2382,8 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
                           user={user} 
                           rank={userRank} 
                           month={printMonth} 
-                          year={printYear} 
+                          year={printYear}
+                          golongan={profile.golongan} // <-- INI JUGA!
                         />
                       )}
                       {chunks.length > 1 && (<p className="text-right text-xs italic mb-1">Halaman {pageIndex + 1} dari {chunks.length}</p>)}
@@ -2361,7 +2427,6 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
         </div>
       )}
 
-      {/* MODAL EDIT DITEMPATKAN DI SINI (Di luar kondisi mode input/print) */}
       {isEditModalOpen && (
         <ModalEditLCKH 
           onClose={() => setIsEditModalOpen(false)} 
@@ -2381,14 +2446,18 @@ const getDocName = (actName, nip) => {
   return found ? found.doc : '-';
 };
 
-const ReportHeader = ({ title, user, rank, month, year }) => (
+// --- PERBAIKAN: Menambahkan prop 'golongan' agar dinamis ---
+const ReportHeader = ({ title, user, rank, month, year, golongan }) => (
   <div className="text-black">
     <h1 className="text-center font-bold text-lg underline">{title}</h1>
     <h2 className="text-center font-bold text-sm mb-6 uppercase">BULAN {MONTHS[month]} TAHUN {year}</h2>
     <div className="grid grid-cols-[150px_10px_1fr] gap-1 text-sm">
       <div>Nama</div><div>:</div><div className="font-bold whitespace-nowrap">{user.name}</div>
       <div>NIP</div><div>:</div><div>{user.nip}</div>
-      <div>Pangkat/Gol</div><div>:</div><div>{rank.pangkat} / {user.nip === '197210181993032002' ? 'IV.a' : 'III.a'}</div> 
+      
+      {/* BAGIAN INI YANG DULU BIKIN ERROR, SEKARANG SUDAH DINAMIS */}
+      <div>Pangkat/Gol</div><div>:</div><div>{rank.pangkat} / {golongan}</div>
+      
       <div>Jabatan</div><div>:</div><div>{rank.jabatan}</div>
       <div>Unit Kerja</div><div>:</div><div>MTsN 3 Kota Tasikmalaya</div>
     </div>
@@ -2403,7 +2472,7 @@ const SignatureSection = ({ user, rank, month, year }) => {
       <div className="grid grid-cols-2 gap-8">
         <div className="flex flex-col text-center">
            <div className="h-6"></div> 
-           <div className="mb-16"><p>Pejabat Penilai,</p><p>Kepala MTsN 3 Kota Tasikmalaya,</p></div>
+           <div className="mb-16"><p>Pejabat Penilai:</p><p>Kepala MTsN 3 Kota Tasikmalaya,</p></div>
            <div className="mt-auto"><p className="font-bold underline whitespace-nowrap">Hj. YIYIN, S.Ag.,M.Pd.</p><p>NIP. 197210181993032002</p></div>
         </div>
         <div className="flex flex-col text-center">
@@ -2717,6 +2786,20 @@ const App = () => {
     }
   }, [userProfiles]);
 
+// D. Load Libur dari LocalStorage saat buka aplikasi
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedHolidays = localStorage.getItem('schoolHolidays');
+      if (storedHolidays) setHolidays(JSON.parse(storedHolidays));
+    }
+  }, []);
+
+  // E. Simpan Libur ke LocalStorage setiap ada perubahan
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('schoolHolidays', JSON.stringify(holidays));
+    }
+  }, [holidays]);
 
   // --- 3. HANDLERS ---
 
@@ -2767,7 +2850,7 @@ const App = () => {
       <div className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center no-print sticky top-0 z-40 shadow-md">
          <div className="flex items-center gap-2">
             <Image src="/logo kemenag.png" width={30} height={30} alt="Logo" />
-            <span className="font-bold text-sm">MTsN 3 Tasikmalaya</span>
+            <span className="font-bold text-sm">MTsN 3 Kota Tasikmalaya</span>
          </div>
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 active:scale-95 transition-transform"><Menu size={24} /></button>
       </div>
