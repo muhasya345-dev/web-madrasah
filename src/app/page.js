@@ -340,7 +340,7 @@ const STUDENTS = [
   { id: 250, name: 'Najwa Batrisyia Iskandar', class: '8B', code: 'Najwa Batrisyia Iskandar - 8B' },
   { id: 251, name: 'Nisfa Irsa Epsa Matih', class: '8B', code: 'Nisfa Irsa Epsa Matih - 8B' },
   { id: 252, name: 'Olivia Sugara', class: '8B', code: 'Olivia Sugara - 8B' },
-  { id: 253, name: 'Prissa Azzhura', class: '8B', code: 'Prissa Azzhura - 8B' },
+  { id: 253, name: 'Prissa Azzhura', class: '8B', code: 'Prissa Azzhura  - 8B' },
   { id: 254, name: 'Resa Ananda', class: '8B', code: 'Resa Ananda  - 8B' },
   { id: 255, name: 'Revalin Mulki Mutia', class: '8B', code: 'Revalin Mulki Mutia - 8B' },
   { id: 256, name: 'Rifaz Faruq Rahman', class: '8B', code: 'Rifaz Faruq Rahman - 8B' },
