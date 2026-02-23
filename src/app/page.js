@@ -424,7 +424,7 @@ const STUDENTS = [
   { id: 329, name: 'Muhammad Rizky Noor Hikmah', class: '8E', code: 'Muhammad Rizky Noor Hikmah - 8E' },
   { id: 330, name: 'Naila Maulida', class: '8E', code: 'Naila Maulida - 8E' },
   { id: 331, name: 'Nayra Nurfadillah', class: '8E', code: 'Nayra Nurfadillah - 8E' },
-  { id: 332, name: 'Nuri Latifah', class: '8E', code: 'Nuri Latifah - 8E' },
+  { id: 332, name: 'Nuri Latifah', class: '8E', code: 'Nuri  Latifah - 8E' },
   { id: 333, name: 'Pahmi Gilang Pratama', class: '8E', code: 'Pahmi Gilang Pratama - 8E' },
   { id: 334, name: 'Rendy Saputra', class: '8E', code: 'Rendy Saputra - 8E' },
   { id: 335, name: 'Reza Aditya', class: '8E', code: 'Reza Aditya - 8E' },
