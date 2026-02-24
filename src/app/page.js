@@ -2432,16 +2432,22 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, holidays, add
                           {chunk.length === 0 ? (
                             <tr><td colSpan="6" className="text-center py-8 italic">Belum ada kegiatan harian.</td></tr>
                           ) : (
-                            chunk.map((item, idx) => (
-                              <tr key={item.id}>
-                                <td className="text-center">{(pageIndex * ROWS_PER_PAGE) + idx + 1}</td>
-                                <td className="text-center whitespace-nowrap">{getShortDate(item.date)}</td>
-                                <td className="text-left">{item.activity}</td>
-                                <td className="text-left">{item.desc}</td>
-                                <td className="text-center">{item.volume}</td>
-                                <td className="text-center">{item.unit}</td>
-                              </tr>
-                            ))
+                            chunk.map((item, idx) => {
+                              // LOGIKA PENOMORAN BARU
+                              const startNum = pageIndex === 0 ? 0 : 18 + ((pageIndex - 1) * 22);
+                              const rowNum = startNum + idx + 1;
+
+                              return (
+                                <tr key={item.id}>
+                                  <td className="text-center">{rowNum}</td>
+                                  <td className="text-center whitespace-nowrap">{getShortDate(item.date)}</td>
+                                  <td className="text-left">{item.activity}</td>
+                                  <td className="text-left">{item.desc}</td>
+                                  <td className="text-center">{item.volume}</td>
+                                  <td className="text-center">{item.unit}</td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
