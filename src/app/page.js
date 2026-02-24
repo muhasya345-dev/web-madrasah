@@ -812,6 +812,26 @@ const getTitimangsa = (dateObj) => {
   return dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+// Fungsi untuk mencari hari kerja terakhir dalam suatu bulan (Senin-Jumat, non-libur)
+const getLastWorkingDayOfMonth = (year, month, holidaysArr = []) => {
+  let d = new Date(year, month + 1, 0); // Mulai dari hari terakhir di bulan tersebut
+  
+  while (true) {
+    const dayOfWeek = d.getDay();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${day}`;
+
+    // Cek jika bukan Minggu(0), bukan Sabtu(6), dan tidak ada di daftar holidays
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidaysArr.includes(dateStr)) {
+      return d;
+    }
+    // Jika libur/weekend, mundur 1 hari
+    d.setDate(d.getDate() - 1);
+  }
+};
+
 const getShortDate = (d) => {
   const dt = new Date(d);
   return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
@@ -2112,7 +2132,7 @@ const CoverPage = ({ user, month, year }) => {
   );
 };
 // --- 2. KOMPONEN LCKH MANAGER (DIPERBAIKI UNTUK CETAK PROFIL) ---
-const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) => {
+const LCKHManager = ({ user, data, setData, profiles, setProfiles, holidays, addToast }) => {
   const [mode, setMode] = useState('input');
   
   // Ambil profil dari global state, atau default III.a
@@ -2361,7 +2381,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
                    </tbody>
                  </table>
                  <div className="signature-section">
-                    <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
+                    <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} holidays={holidays} />
                  </div>
              </div>
 
@@ -2372,10 +2392,18 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
                 if (sortedData.length === 0) {
                    chunks.push([]);
                 } else {
-                   for (let i = 0; i < sortedData.length; i += ROWS_PER_PAGE) {
-                      chunks.push(sortedData.slice(i, i + ROWS_PER_PAGE));
+                   let currentIndex = 0;
+                   while (currentIndex < sortedData.length) {
+                      const isFirstPage = chunks.length === 0;
+                      // Halaman pertama 18 baris (karena terpotong kop surat)
+                      // Halaman selanjutnya dimaksimalkan jadi 22 baris
+                      const rowsThisPage = isFirstPage ? 18 : 22; 
+                      
+                      chunks.push(sortedData.slice(currentIndex, currentIndex + rowsThisPage));
+                      currentIndex += rowsThisPage;
                    }
                 }
+                
                 return chunks.map((chunk, pageIndex) => (
                    <div key={pageIndex} className="sheet">
                       {pageIndex === 0 && (
@@ -2385,7 +2413,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
                           rank={userRank} 
                           month={printMonth} 
                           year={printYear}
-                          golongan={profile.golongan} // <-- INI JUGA!
+                          golongan={profile.golongan} 
                         />
                       )}
                       {chunks.length > 1 && (<p className="text-right text-xs italic mb-1">Halaman {pageIndex + 1} dari {chunks.length}</p>)}
@@ -2419,7 +2447,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, addToast }) =
                       </table>
                       {pageIndex === chunks.length - 1 && (
                         <div className="signature-section">
-                           <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} />
+                           <SignatureSection user={user} rank={userRank} month={printMonth} year={printYear} holidays={holidays} />
                         </div>
                       )}
                    </div>
@@ -2466,8 +2494,9 @@ const ReportHeader = ({ title, user, rank, month, year, golongan }) => (
   </div>
 );
 
-const SignatureSection = ({ user, rank, month, year }) => {
-  const lastDay = new Date(year, month + 1, 0); // Last day of selected month
+const SignatureSection = ({ user, rank, month, year, holidays }) => {
+  // Gunakan helper pencari hari kerja terakhir
+  const lastDay = getLastWorkingDayOfMonth(year, month, holidays || []);
   
   return (
     <div className="mt-8 text-sm text-black break-inside-avoid" style={{ pageBreakInside: 'avoid' }}>
@@ -2478,6 +2507,7 @@ const SignatureSection = ({ user, rank, month, year }) => {
            <div className="mt-auto"><p className="font-bold underline whitespace-nowrap">Hj. YIYIN, S.Ag.,M.Pd.</p><p>NIP. 197210181993032002</p></div>
         </div>
         <div className="flex flex-col text-center">
+           {/* Titimangsa otomatis menggunakan hari kerja terakhir */}
            <div className="h-6 mb-1">Tasikmalaya, {getTitimangsa(lastDay)}</div>
            <div className="mb-16"><p>Pegawai:</p><p>{rank.jabatan},</p></div>
            <div className="mt-auto"><p className="font-bold underline whitespace-nowrap">{user.name}</p><p>NIP. {user.nip}</p></div>
@@ -2886,7 +2916,15 @@ const App = () => {
         )}
         
         {view === 'lckh' && userPermissions.includes('lckh') && (
-            <LCKHManager user={currentUser} data={lckhData} setData={setLckhData} profiles={userProfiles} setProfiles={setUserProfiles} addToast={addToast} />
+            <LCKHManager 
+               user={currentUser} 
+               data={lckhData} 
+               setData={setLckhData} 
+               profiles={userProfiles} 
+               setProfiles={setUserProfiles} 
+               holidays={holidays}  // <-- Tambahkan ini
+               addToast={addToast} 
+            />
         )}
 
         {/* FITUR BARU: MANAJEMEN USER (Hanya Admin) */}
