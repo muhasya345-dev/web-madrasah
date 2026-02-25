@@ -91,7 +91,6 @@ const STUDENTS = [
   { id: 18, name: 'Sara Ramadani', class: '7A', code: 'Sara Ramadani - 7A' },
   { id: 19, name: 'Savana Dwi Meilanita Putri', class: '7A', code: 'Savana Dwi Meilanita Putri - 7A' },
   { id: 20, name: 'Sopyan Pebriansah', class: '7A', code: 'Sopyan Pebriansah - 7A' },
-  { id: 21, name: 'Syabilla Nur Fadilah', class: '7A', code: 'Syabilla Nur Fadilah - 7A' },
 
   // --- KELAS 7B ---
   { id: 21, name: 'Ahzaz Riswan Maulana', class: '7B', code: 'Ahzaz Riswan Maulana - 7B' },
@@ -273,7 +272,6 @@ const STUDENTS = [
   { id: 187, name: 'Bilqis Aqila Khairunnisa', class: '7G', code: 'Bilqis Aqila Khairunnisa - 7G' },
   { id: 188, name: 'Fanni Salsabilla', class: '7G', code: 'Fanni Salsabilla - 7G' },
   { id: 189, name: 'Farhan Muzaki', class: '7G', code: 'Farhan Muzaki - 7G' },
-  { id: 189, name: 'Hamiya Zamjabila', class: '7G', code: 'Hamiya Zamjabila - 7G' },
   { id: 190, name: 'Ifki Rizqul Barokah', class: '7G', code: 'Ifki Rizqul Barokah - 7G' },
   { id: 191, name: 'Iqbal Sya\'bani Nursalam', class: '7G', code: 'Iqbal Sya\'bani Nursalam - 7G' },
   { id: 192, name: 'Karla Nur Raisa Ganjar Fatimah', class: '7G', code: 'Karla Nur Raisa Ganjar Fatimah - 7G' },
@@ -729,6 +727,8 @@ const STUDENTS = [
   { id: 610, name: 'M Arbaz', class: '7E', code: 'M Arbaz - 7E' },
   { id: 611, name: 'Anggita', class: '7E', code: 'Anggita - 7E' },
   { id: 612, name: 'Rajwa', class: '8F', code: 'Rajwa - 8F' },
+  { id: 613, name: 'Hamiya Zamjabila', class: '7G', code: 'Hamiya Zamjabila - 7G' },
+  { id: 614, name: 'Syabilla Nur Fadilah', class: '7A', code: 'Syabilla Nur Fadilah - 7A' },
 ];
 
 const GOLONGAN_MAP = {
