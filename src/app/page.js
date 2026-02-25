@@ -365,7 +365,7 @@ const STUDENTS = [
   { id: 273, name: 'Hana Lutfiyah', class: '8C', code: 'Hana Lutfiyah - 8C' },
   { id: 274, name: 'Ihsan Suparman', class: '8C', code: 'Ihsan Suparman - 8C' },
   { id: 275, name: 'Irfan Maulana', class: '8C', code: 'Irfan Maulana - 8C' },
-  { id: 276, name: 'Laisya Agnia Salsabila', class: '8C', code: 'Laisya Agnia Salsabila - 8C' },
+  { id: 276, name: 'Laisya Agnia Salsabila', class: '8C', code: 'Laisya Agnia Salsabila  - 8C' },
   { id: 277, name: 'Muhammad Arfan Siddiq', class: '8C', code: 'Muhammad Arfan Siddiq - 8C' },
   { id: 278, name: 'Muhammad Rahman Sidik', class: '8C', code: 'Muhammad Rahman Sidik - 8C' },
   { id: 279, name: 'Nandika Ristiawan', class: '8C', code: 'Nandika Ristiawan - 8C' },
