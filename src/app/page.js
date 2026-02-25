@@ -273,6 +273,7 @@ const STUDENTS = [
   { id: 187, name: 'Bilqis Aqila Khairunnisa', class: '7G', code: 'Bilqis Aqila Khairunnisa - 7G' },
   { id: 188, name: 'Fanni Salsabilla', class: '7G', code: 'Fanni Salsabilla - 7G' },
   { id: 189, name: 'Farhan Muzaki', class: '7G', code: 'Farhan Muzaki - 7G' },
+  { id: 189, name: 'Hamiya Zamjabila', class: '7G', code: 'Hamiya Zamjabila - 7G' },
   { id: 190, name: 'Ifki Rizqul Barokah', class: '7G', code: 'Ifki Rizqul Barokah - 7G' },
   { id: 191, name: 'Iqbal Sya\'bani Nursalam', class: '7G', code: 'Iqbal Sya\'bani Nursalam - 7G' },
   { id: 192, name: 'Karla Nur Raisa Ganjar Fatimah', class: '7G', code: 'Karla Nur Raisa Ganjar Fatimah - 7G' },
@@ -294,7 +295,7 @@ const STUDENTS = [
   { id: 208, name: 'Syahila Nur Aprilia', class: '7G', code: 'Syahila Nur Aprilia - 7G' },
   { id: 209, name: 'Taskia Azvi Ramadani Putri', class: '7G', code: 'Taskia Azvi Ramadani Putri - 7G' },
   { id: 210, name: 'Wildan Nugraha', class: '7G', code: 'Wildan Nugraha - 7G' },
-  { id: 211, name: 'Zaskia Amelia', class: '7G', code: 'Zaskia Amelia - 7G' },
+  { id: 211, name: 'Zaskia Amelia', class: '7G', code: 'Zaskia Amelia  - 7G' },
   { id: 212, name: 'Zulaika Febriani', class: '7G', code: 'Zulaika Febriani - 7G' },
 
   // --- KELAS 8A ---
