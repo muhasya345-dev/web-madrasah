@@ -2505,7 +2505,8 @@ const SignatureSection = ({ user, rank, month, year, holidays }) => {
   const lastDay = getLastWorkingDayOfMonth(year, month, holidays || []);
   
   return (
-    <div className="mt-8 text-sm text-black break-inside-avoid" style={{ pageBreakInside: 'avoid' }}>
+    // PERBAIKAN: Mengganti mt-8 menjadi pt-16 agar jarak atas (padding) tidak hilang saat pindah halaman
+    <div className="pt-16 pb-4 text-sm text-black break-inside-avoid" style={{ pageBreakInside: 'avoid' }}>
       <div className="grid grid-cols-2 gap-8">
         <div className="flex flex-col text-center">
            <div className="h-6"></div> 
