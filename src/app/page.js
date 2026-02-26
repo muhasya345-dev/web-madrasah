@@ -2388,7 +2388,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, holidays, add
 
              {/* HALAMAN 3 dst: LCKH DENGAN PAGINATION */}
              {(() => {
-                const ROWS_PER_PAGE = 18;
+                const ROWS_PER_PAGE = 17;
                 const chunks = [];
                 if (sortedData.length === 0) {
                    chunks.push([]);
@@ -2396,9 +2396,8 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, holidays, add
                    let currentIndex = 0;
                    while (currentIndex < sortedData.length) {
                       const isFirstPage = chunks.length === 0;
-                      // Halaman pertama 18 baris (karena terpotong kop surat)
-                      // Halaman selanjutnya dimaksimalkan jadi 22 baris
-                      const rowsThisPage = isFirstPage ? 18 : 22; 
+                      // Halaman pertama 17 baris (karena terpotong kop surat)
+                      const rowsThisPage = isFirstPage ? 17 : 21; 
                       
                       chunks.push(sortedData.slice(currentIndex, currentIndex + rowsThisPage));
                       currentIndex += rowsThisPage;
@@ -2435,7 +2434,7 @@ const LCKHManager = ({ user, data, setData, profiles, setProfiles, holidays, add
                           ) : (
                             chunk.map((item, idx) => {
                               // LOGIKA PENOMORAN BARU
-                              const startNum = pageIndex === 0 ? 0 : 18 + ((pageIndex - 1) * 22);
+                              const startNum = pageIndex === 0 ? 0 : 17 + ((pageIndex - 1) * 21);
                               const rowNum = startNum + idx + 1;
 
                               return (
