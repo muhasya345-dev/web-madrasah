@@ -768,11 +768,11 @@ const ACTIVITIES_LIST = [
   { name: 'Melaksanakan kegiatan lain-lain', unit: 'kegiatan', doc: 'Dokumen kegiatan' },
   { name: 'Mendampingi siswa dalam kegiatan pembiasaan Dhuha', unit: 'kegiatan', doc: 'Dokumen kegiatan' },
   { name: 'Menjadi panitia dalam kegiatan madrasah', unit: 'kegiatan', doc: 'Dokumen kegiatan' },
-  { name: 'Mendampingi siswa dalam kegiatan pembiasaan Literasi', unit: 'kegiatan', doc: 'Dokumen kegiatan pembiasaan' },
+  { name: 'Mendampingi siswa dalam kegiatan Literasi', unit: 'kegiatan', doc: 'Dokumen kegiatan pembiasaan' },
   { name: 'Libur semester', unit: 'hari', doc: 'Dokumen kalender pendidikan' },
   { name: 'Mengikuti kegiatan PHBI', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBI' },
   { name: 'Mengikuti kegiatan PHBN', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBN' },
-  { name: 'Mendampingi siswa dalam kegiatan pembiasaan olahraga', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBN' },
+  { name: 'Mendampingi siswa dalam pembiasaan olahraga', unit: 'kegiatan', doc: 'Dokumen kegiatan PHBN' },
 ];
 
 const HEADMASTER_ACTIVITIES = [
