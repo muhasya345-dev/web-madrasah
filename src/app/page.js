@@ -2120,7 +2120,7 @@ const CoverPage = ({ user, month, year }) => {
         <div className="mt-12 space-y-1 text-base text-gray-500 font-medium border-l-4 border-gray-300 pl-4">
           <p>1. Laporan Capaian Kinerja Bulanan</p>
           <p>2. Laporan Capaian Kinerja Harian</p>
-          <p>3. Presensi Kehadiran</p>
+          <p>3. Laporan Presensi</p>
         </div>
       </div>
 
